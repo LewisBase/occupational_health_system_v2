@@ -2,7 +2,7 @@
 pictures/
 cache/
 results/
-model/
+models/
 log/
 *.csv
 *.tsv
