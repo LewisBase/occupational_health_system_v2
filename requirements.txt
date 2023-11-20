@@ -1,0 +1,15 @@
+numpy == 1.24.3
+pandas == 1.5.3
+matplotlib == 3.7.1
+scikit-learn == 1.2.2
+scipy == 1.10.1
+pyfunctional == 1.4.3
+pydantic == 2.1.1
+pathlib == 1.0.1
+xlrd == 2.0.1
+category_encoders == 2.6.2
+pyod == 1.1.1
+prince == 0.13.0
+yellowbrick == 1.5
+plotly == 5.9.0
+kaleido == 0.2.1
