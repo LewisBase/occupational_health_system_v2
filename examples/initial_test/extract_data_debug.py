@@ -73,14 +73,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_path",
                         type=str,
-                        default="D:\WorkingData\\2023浙江疾控数据\parallel_test")
-                        # default="D:\WorkingData\\2023浙江疾控数据\\2022个案卡-20230920")
+                        # default="D:\WorkingData\\2023浙江疾控数据\parallel_test")
+                        default="D:\WorkingData\\2023浙江疾控数据\\2022个案卡-20230920")
     parser.add_argument("--output_path",
                         type=str,
                         default="D:\WorkingData\\2023浙江疾控数据\DataBase")
     parser.add_argument("--n_jobs",
                         type=int,
-                        default=5)
+                        default=2)
     args = parser.parse_args()
 
     logger.info("Input Parameters informations:")
