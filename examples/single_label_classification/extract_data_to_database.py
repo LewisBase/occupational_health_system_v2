@@ -6,6 +6,7 @@
 @Software: vscode
 @Description:
         进行浙疾控职业健康数据的初步摸查
+        将数据导入到SQLite数据库中
 """
 
 import pandas as pd
@@ -17,7 +18,6 @@ from functional import seq
 from loguru import logger
 from joblib import Parallel, delayed
 
-from staff_info import StaffInfo
 from constants.global_constants import PhysicalExamItems
 
 
@@ -73,14 +73,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_path",
                         type=str,
-                        # default="D:\WorkingData\\2023浙江疾控数据\parallel_test")
-                        default="D:\WorkingData\\2023浙江疾控数据\\2022个案卡-20230920")
+                        default="D:\WorkingData\\2023浙江疾控数据\parallel_test")
+                        # default="D:\WorkingData\\2023浙江疾控数据\\2022个案卡-20230920")
     parser.add_argument("--output_path",
                         type=str,
                         default="D:\WorkingData\\2023浙江疾控数据\DataBase")
     parser.add_argument("--n_jobs",
                         type=int,
-                        default=2)
+                        default=3)
     args = parser.parse_args()
 
     logger.info("Input Parameters informations:")
