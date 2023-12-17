@@ -13,3 +13,6 @@ prince == 0.13.0
 yellowbrick == 1.5
 plotly == 5.9.0
 kaleido == 0.2.1
+prophet == 1.1.5
+folium == 0.15.1
+streamlit_folium == 0.17.4

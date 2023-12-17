@@ -24,49 +24,7 @@ import pickle
 
 from utils.data_helper import get_categorical_indicies
 
-if __name__ == "__main__":
-    from matplotlib.font_manager import FontProperties
-    from matplotlib import rcParams
-    
-    config = {
-                "font.family": "serif",
-                "font.size": 12,
-                "mathtext.fontset": "stix",# matplotlib渲染数学字体时使用的字体，和Times New Roman差别不大
-                "font.serif": ["STZhongsong"],# 华文中宋
-                "axes.unicode_minus": False # 处理负号，即-号
-             }
-    rcParams.update(config)
-    
-
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input_path",
-                        type=str,
-                        default="./cache/preprocessed_data_set.csv")
-    parser.add_argument("--output_path", type=str, default="./results")
-    parser.add_argument("--pictures_path", type=str, default="./pictures")
-    parser.add_argument("--models_path", type=str, default="./models")
-    parser.add_argument("--task", type=str, default="train")
-    parser.add_argument("--plot_types",
-                        type=list,
-                        default=["ROC", "TPR", "shap"])
-    args = parser.parse_args()
-
-    logger.info("Input Parameters informations:")
-    message = "\n".join([f"{k:<20}: {v}" for k, v in vars(args).items()])
-    logger.info(message)
-
-    input_path = Path(args.input_path)
-    output_path = Path(args.output_path)
-    pictures_path = Path(args.pictures_path)
-    models_path = Path(args.models_path)
-    task = args.task
-    plot_types = args.plot_types
-
-    for path in (output_path, pictures_path, models_path):
-        if not path.exists():
-            path.mkdir(parents=True)
-
+def step(input_path, pictures_path, models_path, task, plot_types):
     input_df = pd.read_csv(input_path, header=0)
     labels = input_df["label"]
     features = input_df.drop(["id", "label"], axis=1)
@@ -158,3 +116,48 @@ if __name__ == "__main__":
         shap.summary_plot(shap_values, train_X)
         plt.savefig(pictures_path / "shap_fig.png")
         plt.close()
+
+if __name__ == "__main__":
+    from matplotlib.font_manager import FontProperties
+    from matplotlib import rcParams
+    
+    config = {
+                "font.family": "serif",
+                "font.size": 12,
+                "mathtext.fontset": "stix",# matplotlib渲染数学字体时使用的字体，和Times New Roman差别不大
+                "font.serif": ["STZhongsong"],# 华文中宋
+                "axes.unicode_minus": False # 处理负号，即-号
+             }
+    rcParams.update(config)
+    
+
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input_path",
+                        type=str,
+                        default="./cache/preprocessed_data_set.csv")
+    parser.add_argument("--output_path", type=str, default="./results")
+    parser.add_argument("--pictures_path", type=str, default="./pictures")
+    parser.add_argument("--models_path", type=str, default="./models")
+    parser.add_argument("--task", type=str, default="train")
+    parser.add_argument("--plot_types",
+                        type=list,
+                        default=["ROC", "TPR", "shap"])
+    args = parser.parse_args()
+
+    logger.info("Input Parameters informations:")
+    message = "\n".join([f"{k:<20}: {v}" for k, v in vars(args).items()])
+    logger.info(message)
+
+    input_path = Path(args.input_path)
+    output_path = Path(args.output_path)
+    pictures_path = Path(args.pictures_path)
+    models_path = Path(args.models_path)
+    task = args.task
+    plot_types = args.plot_types
+
+    for path in (output_path, pictures_path, models_path):
+        if not path.exists():
+            path.mkdir(parents=True)
+
+    step(input_path, pictures_path, models_path, task, plot_types)

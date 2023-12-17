@@ -61,6 +61,8 @@ FROM {table_name}
 {condition_text}
 {limit_text}
     """
+    logger.info(f"SQL command:\n{sql_text}")
+    
     res = pd.read_sql_query(sql_text, conn)
     cur.close()
     conn.close()

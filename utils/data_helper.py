@@ -158,8 +158,6 @@ def timeseries_train_test_split(X: pd.DataFrame,
                                 y: pd.DataFrame,
                                 train_size: float = 0.8):
     train_size = int(train_size * len(X))
-    X.sort_index(ascending=True, inplace=True)
-    y.sort_index(ascending=True, inplace=True)
     train_X = X.iloc[:train_size]
     test_X = X.iloc[train_size:]
     train_y = y.iloc[:train_size]
