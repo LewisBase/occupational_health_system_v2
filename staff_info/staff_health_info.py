@@ -19,10 +19,10 @@ class StaffHealthInfo(BaseModel):
     
     def __init__(self, **data):
         super().__init__(**data)
-        self._build(**data)
+        self._detection(**data)
         self._diagnoise(**data)
         
-    def _build(self, **data):
+    def _detection(self, **data):
         if self.auditory_detection:
             self.diagnoise_type["auditory"] = list(self.auditory_detection.keys())
             for key, value in self.auditory_detection.items():

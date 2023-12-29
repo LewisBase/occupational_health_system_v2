@@ -350,7 +350,6 @@ class AuditoryConstants():
         }
     }
 
-
     ISO_1999_2023_NIPTS_PRED_DICT_B6 = {
         "Female": {
             "20": {

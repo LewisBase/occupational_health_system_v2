@@ -20,18 +20,16 @@ class AuditoryDiagnose(BaseModel):
               sex: str, age: int,
               percentrage: int = 50,
               mean_key: list = [3000, 4000, 6000],
+              NIPTS_diagnose_strategy: str = "better",
               **kwargs):
-        diagnose_strategy = kwargs.get("diagnose_strategy", "better")
-
-        if diagnose_strategy == "better":
+        if NIPTS_diagnose_strategy == "better":
             diagnose_ear_data = detection_result.better_ear_data
-        elif diagnose_strategy == "left":
+        elif NIPTS_diagnose_strategy == "left":
             diagnose_ear_data = detection_result.left_ear_data
-        elif diagnose_strategy == "right":
+        elif NIPTS_diagnose_strategy == "right":
             diagnose_ear_data = detection_result.right_ear_data
 
         sex = "Male" if sex in ("Male", "男", "M", "m", "male") else "Female"
-        # sex = "Male" if sex.startswith("M") else "Female"
         age = AuditoryConstants.AGE_BOXING(age=age)
         percentrage = str(percentrage) + "pr"
         standard_PTA = AuditoryConstants.STANDARD_PTA_DICT.get(sex).get(age)
