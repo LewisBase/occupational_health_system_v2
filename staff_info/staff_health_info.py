@@ -12,7 +12,7 @@ class StaffHealthInfo(BaseModel):
     staff_id: str
     sex: str
     age: Union[int, float]
-    diagnoise_type: dict = defaultdict(lambda: [])
+    diagnoise_type: Dict = {}
     auditory_detection: Dict = None
     auditory_diagnose: Dict = {}
     health_info: Dict[str, Union[str,float]] = None

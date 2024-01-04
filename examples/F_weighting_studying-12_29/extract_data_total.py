@@ -66,8 +66,11 @@ def load_total_data(input_path: Path):
                             "cigarette_per_day": 0
                         },
                         inplace=True)
-                    sub_df_info.loc[:, "duration"] = sub_df_info.loc[:,
-                        "duration"].apply(lambda x: 1 if x < 1 else x)
+                    sub_df_info.loc[:,
+                                    "duration"] = sub_df_info["duration"].apply(
+                                                                      lambda x:
+                                                                      1 if x <
+                                                                      1 else x)
 
                     # staff_health_info
                     PTA_res_dict = df[[
@@ -78,7 +81,7 @@ def load_total_data(input_path: Path):
                     PTA_res_dict = seq(PTA_res_dict).map(lambda x: {
                         "PTA": x
                     }).list()
-                    sub_df_info.loc[:,"auditory_detection"] = PTA_res_dict
+                    sub_df_info.loc[:, "auditory_detection"] = PTA_res_dict
 
                     # staff_occupational_hazard_info
                     df["recorder_time"] = df["recorder_time"].apply(
@@ -88,7 +91,7 @@ def load_total_data(input_path: Path):
                     noise_hazard_dict = df[[
                         "recorder", "recorder_time", "parent_path"
                     ]].to_dict(orient="records")
-                    sub_df_info.loc[:,"noise_hazard_info"] = noise_hazard_dict
+                    sub_df_info.loc[:, "noise_hazard_info"] = noise_hazard_dict
 
                     df_total_info = pd.concat([df_total_info, sub_df_info],
                                               axis=0)
@@ -102,6 +105,12 @@ def _extract_data_for_task(data, task, **additional_set):
         data.update(additional_set)
     # 构建对象
     staff_info = StaffInfo(**data)
+    staff_info.staff_occupational_hazard_info.noise_hazard_info = staff_info.staff_occupational_hazard_info.noise_hazard_info.load_from_preprocessed_file(
+        parent_path=data["noise_hazard_info"]["parent_path"],
+        recorder=staff_info.staff_occupational_hazard_info.noise_hazard_info.
+        recorder,
+        recorder_time=staff_info.staff_occupational_hazard_info.
+        noise_hazard_info.recorder_time)
     return staff_info
 
 

@@ -34,7 +34,7 @@ def load_data(file_path, sheet_name_prefix, usecols, col_names, header):
         parameters_from_file = {}
         for key in useful_info.keys():
             if "kurtosis_" in key:
-                parameters_from_file[key] = useful_info.pop(key)
+                parameters_from_file[key] = useful_info.get(key)
         useful_info["parameters_from_file"] = parameters_from_file
     else:
         raise FileNotFoundError(f"Can not find file {file_path.resolve()}!!!")
@@ -71,7 +71,7 @@ class NoiseHazard(BaseHazard):
         self._cal_mean_kurtosis()
 
     @classmethod
-    def load_from_file(cls,
+    def load_from_preprocessed_file(cls,
                        recorder: str,
                        recorder_time: str,
                        parent_path: str = ".",
