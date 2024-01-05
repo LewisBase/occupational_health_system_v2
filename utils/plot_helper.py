@@ -1,11 +1,13 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import plotly.graph_objects as go
 import plotly.express as px
 
 from pathlib import Path
 from typing import Union
+from loguru import logger
 from functional import seq
 
 
@@ -265,6 +267,57 @@ def plot_pca_2d(df: pd.DataFrame,
                    label=f"class:{cluster}")
     plt.legend(loc="best", fontsize="small")
     plt.title(name)
+    plt.savefig(picture_path)
+    if is_show:
+        plt.show()
+    plt.close(fig=fig)
+
+
+def plot_corr_hotmap(df: pd.DataFrame,
+                     output_path: str = "./pictures",
+                     **kwargs):
+    is_show = kwargs.get("is_show", False)
+    picture_name = kwargs.get("picture_name", "corr_hotmap.png")
+
+    picture_path = Path(output_path) / picture_name
+
+    corr_matrix = df.corr()
+    fig, ax = plt.subplots()
+    sns.heatmap(corr_matrix,
+                      annot=True,
+                      vmax=1,
+                      square=True,
+                      cmap="Reds",
+                      fmt=".1f",
+                      ax=ax)
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+         rotation_mode="anchor")
+    plt.setp(ax.get_yticklabels(), rotation=45, ha="right",
+         rotation_mode="anchor")
+    fig.tight_layout()
+    plt.savefig(picture_path)
+    if is_show:
+        plt.show()
+    plt.close(fig=fig)
+
+
+def plot_feature_importance(feature_importance: dict,
+                            top_n: int = 10,
+                            output_path: str = "./pictures",
+                            **kwargs):
+    is_show = kwargs.get("is_show", False)
+    picture_name = kwargs.get("picture_name", "feature_importance.png")
+
+    picture_path = Path(output_path) / picture_name
+
+    importances = seq(feature_importance.items()).sorted(
+        lambda x: x[1], reverse=True)[:top_n].dict()
+    fig, ax = plt.subplots()
+    ax.barh(range(top_n, 0, -1), importances.values())
+    ax.set_yticks(range(top_n, 0, -1))
+    ax.set_yticklabels(importances.keys(), rotation=45)
+    fig.tight_layout()
+    logger.info("\n".join(importances.keys()))
     plt.savefig(picture_path)
     if is_show:
         plt.show()
