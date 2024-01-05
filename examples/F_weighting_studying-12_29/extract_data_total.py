@@ -12,6 +12,7 @@ import pandas as pd
 import pickle
 from pathlib import Path
 from functional import seq
+from itertools import product
 from joblib import Parallel, delayed
 from loguru import logger
 
@@ -66,11 +67,8 @@ def load_total_data(input_path: Path):
                             "cigarette_per_day": 0
                         },
                         inplace=True)
-                    sub_df_info.loc[:,
-                                    "duration"] = sub_df_info["duration"].apply(
-                                                                      lambda x:
-                                                                      1 if x <
-                                                                      1 else x)
+                    sub_df_info.loc[:, "duration"] = sub_df_info[
+                        "duration"].apply(lambda x: 1 if x < 1 else x)
 
                     # staff_health_info
                     PTA_res_dict = df[[
@@ -105,12 +103,31 @@ def _extract_data_for_task(data, task, **additional_set):
         data.update(additional_set)
     # 构建对象
     staff_info = StaffInfo(**data)
-    staff_info.staff_occupational_hazard_info.noise_hazard_info = staff_info.staff_occupational_hazard_info.noise_hazard_info.load_from_preprocessed_file(
+    staff_info.staff_occupational_hazard_info.noise_hazard_info = \
+        staff_info.staff_occupational_hazard_info.noise_hazard_info.load_from_preprocessed_file(
         parent_path=data["noise_hazard_info"]["parent_path"],
         recorder=staff_info.staff_occupational_hazard_info.noise_hazard_info.
         recorder,
         recorder_time=staff_info.staff_occupational_hazard_info.
-        noise_hazard_info.recorder_time)
+        noise_hazard_info.recorder_time,
+        usecols=None,
+        col_names=[
+            "FK_63", "FK_125", "FK_250", "FK_500", "FK_1000", "FK_2000",
+            "FK_4000", "FK_8000", "FK_16000", "kurtosis", "A_kurtosis",
+            "C_kurtosis", "SPL_63", "SPL_125", "SPL_250", "SPL_500",
+            "SPL_1000", "SPL_2000", "SPL_4000", "SPL_8000", "SPL_16000",
+            "SPL_dB", "SPL_dBA", "SPL_dBC", "Peak_SPL_dB", "Leq", "LAeq",
+            "LCeq", "kurtosis_median", "kurtosis_arimean", "kurtosis_geomean",
+            "A_kurtosis_median", "A_kurtosis_arimean", "A_kurtosis_geomean",
+            "C_kurtosis_median", "C_kurtosis_arimean", "C_kurtosis_geomean",
+            "Max_Peak_SPL_dB", "Leq_63", "Leq_125", "Leq_250", "Leq_500",
+            "Leq_1000", "Leq_2000", "Leq_4000", "Leq_8000", "Leq_16000"
+        ])
+    for method, algorithm_code in product(
+        ["total_ari", "total_geo", "segment_ari"],
+        ["A+n", "A+A", "C+n", "C+C"]):
+        staff_info.staff_occupational_hazard_info.noise_hazard_info.cal_adjust_L(
+            method=method, algorithm_code=algorithm_code)
     return staff_info
 
 
