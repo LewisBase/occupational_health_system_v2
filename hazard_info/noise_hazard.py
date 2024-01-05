@@ -1,7 +1,7 @@
+import re
 import pandas as pd
 import numpy as np
 
-from pydantic import BaseModel
 from functional import seq
 from typing import List, Dict
 from pathlib import Path
@@ -33,7 +33,11 @@ def load_data(file_path, sheet_name_prefix, usecols, col_names, header):
                 useful_info[col] = origin_df[col].tolist()
         parameters_from_file = {}
         for key in useful_info.keys():
-            if "kurtosis_" in key:
+            if any(substring in key
+                   for substring in ("kurtosis_", "Max_")) or (re.findall(
+                       r"\d+",
+                       key.split("_")[1]) if len(key.split("_")) > 1 else
+                                                               False):
                 parameters_from_file[key] = useful_info.get(key)
         useful_info["parameters_from_file"] = parameters_from_file
     else:
@@ -45,9 +49,11 @@ class NoiseHazard(BaseHazard):
     SPL_dB: List[float] = []
     SPL_dBA: List[float] = []
     SPL_dBC: List[float] = []
+    Peak_SPL_dB: List[float] = []
     kurtosis: List[float] = []
     A_kurtosis: List[float] = []
     C_kurtosis: List[float] = []
+    Max_Peak_SPL_dB: float = None
     kurtosis_median: float = None
     kurtosis_arimean: float = None
     kurtosis_geomean: float = None
@@ -57,11 +63,16 @@ class NoiseHazard(BaseHazard):
     C_kurtosis_median: float = None
     C_kurtosis_arimean: float = None
     C_kurtosis_geomean: float = None
-    Leq: float = np.nan
-    LAeq: float = np.nan
-    LCeq: float = np.nan
-    L_adjust: Dict[str, float] = {}
-    parameters_from_file: Dict[str, float] = {}
+    Leq: float = None
+    LAeq: float = None
+    LCeq: float = None
+    L_adjust: Dict = {
+        "total_ari": {},
+        "total_geo": {},
+        "segment_ari": {},
+        "segment_geo": {}
+    }
+    parameters_from_file: Dict = {}
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -69,14 +80,15 @@ class NoiseHazard(BaseHazard):
 
     def _build(self, **data):
         self._cal_mean_kurtosis()
+        self._cal_max_SPL()
 
     @classmethod
     def load_from_preprocessed_file(cls,
-                       recorder: str,
-                       recorder_time: str,
-                       parent_path: str = ".",
-                       file_name: str = "Kurtosis_Leq_60s_AC.xls",
-                       **kwargs):
+                                    recorder: str,
+                                    recorder_time: str,
+                                    parent_path: str = ".",
+                                    file_name: str = "Kurtosis_Leq_60s_AC.xls",
+                                    **kwargs):
         file_path_default = Path(
             parent_path) / recorder_time / recorder / file_name
         file_path = kwargs.pop("file_path", file_path_default)
@@ -99,7 +111,10 @@ class NoiseHazard(BaseHazard):
                                 usecols=usecols,
                                 col_names=col_names,
                                 header=header)
-        useful_info.update({"recorder":recorder, "recorder_time":recorder_time})
+        useful_info.update({
+            "recorder": recorder,
+            "recorder_time": recorder_time
+        })
         return cls(**useful_info)
 
     def _cal_mean_kurtosis(self):
@@ -123,11 +138,19 @@ class NoiseHazard(BaseHazard):
             "C_kurtosis_arimean": self.C_kurtosis_arimean,
             "C_kurtosis_geomean": self.C_kurtosis_geomean,
         }
+        self._value_check_and_replace(value_check_dict)
+
+    def _cal_max_SPL(self):
+        self.Max_Peak_SPL_dB = np.max(self.Peak_SPL_dB)
+        value_check_dict = {"Max_Peak_SPL_dB": self.Max_Peak_SPL_dB}
+        self._value_check_and_replace(value_check_dict)
+
+    def _value_check_and_replace(self, value_check_dict: dict):
         for key, value in value_check_dict.items():
-            if self.parameters_from_file.get(key
-            ) and abs(value - self.parameters_from_file[key]) > 1E-2:
+            if self.parameters_from_file.get(key) and abs(
+                    value - self.parameters_from_file[key]) > 1E-2:
                 logger.warning(
-                    f"Arimean Kurtosis {round(value,3)} does not match the \
+                    f"Calculated value {key}: {round(value,3)} does not match the \
                               value {round(self.parameters_from_file[key],3)} load from file!!!"
                 )
                 logger.warning("Value load from file used!!!")
@@ -138,9 +161,26 @@ class NoiseHazard(BaseHazard):
                      method: str = "total_ari",
                      algorithm_code: str = "A+n",
                      **kwargs):
+        """_summary_
+
+        Args:
+            Lambda (float, optional): 针对LAeq的校正系数. Defaults to 6.5.
+            method (str, optional): 使用的校正方法，包括整体算数平均峰度校正：total_ari, 
+                                                      整体几何平均峰度校正：total_geo, 
+                                                      分段算数平均峰度校正：segment_ari, 
+                                                      分段算数平均峰度校正：segment_geo.
+                                    Defaults to "total_ari".
+            algorithm_code (str, optional): 进行校正时Leq部分与峰度部分分别使用的计权方法，
+                                            包括A计权：A，C计权：C，不计权：n. Defaults to "A+n".
+
+        Raises:
+            ValueError: 分段校正方法中SPL数据与kurtosis数据的长度需保持一致
+        """
         effect_SPL = kwargs.get("effect_SPL", 0)
         beta_baseline = kwargs.get("beta_baseline",
                                    AuditoryConstants.BASELINE_NOISE_KURTOSIS)
+        if method not in self.L_adjust.keys():
+            raise ValueError(f"Invalid method: {method}!!!")
 
         L_code = algorithm_code.split("+")[0]
         K_code = algorithm_code.split("+")[1]
@@ -201,8 +241,7 @@ class NoiseHazard(BaseHazard):
         elif method == "segment_geo":
             if len(cal_parameter[K_code]["kurtosis"]) != len(
                     cal_parameter[L_code]["SPL"]):
-                raise ValueError(
-                    "kurtosis data length != SPL data length!")
+                raise ValueError("kurtosis data length != SPL data length!")
             adjust_SPL_dBAs = []
             for i in range(len(cal_parameter[K_code]["kurtosis"])):
                 if cal_parameter[L_code]["SPL"][i] >= effect_SPL:
@@ -216,4 +255,4 @@ class NoiseHazard(BaseHazard):
 
             res = np.mean(adjust_SPL_dBAs)
 
-        self.L_adjust[method] = {"value": res, "algorithm": algorithm_code}
+        self.L_adjust[method].update({algorithm_code: res})
