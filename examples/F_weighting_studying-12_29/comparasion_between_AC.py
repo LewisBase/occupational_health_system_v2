@@ -20,7 +20,7 @@ from functional import seq
 from itertools import product
 from loguru import logger
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import PolynomialFeatures
+from sklearn.preprocessing import PolynomialFeatures, MinMaxScaler
 from sklearn.metrics import mean_absolute_error
 from catboost import CatBoostRegressor
 
@@ -50,8 +50,8 @@ catboost_regressor_params = {
     "learning_rate": 0.05,
     "l2_leaf_reg": 3,
     "max_depth": 10,
-    "n_estimators": 100,
-    "early_stopping_rounds": 100,
+    "n_estimators": 1000,
+    "early_stopping_rounds": 800,
     "eval_metric": "RMSE",
     "metric_period": 50,
     "od_type": "Iter",
@@ -126,14 +126,19 @@ def _extract_data_for_task(data: StaffInfo, **additional_set):
     res["backwards-C_kurtosis_geomean"] = (
         data.staff_occupational_hazard_info.noise_hazard_info.
         C_kurtosis_geomean)**-1
+    ## Peak SPL
+    res["max_Peak_SPL_dB"] = data.staff_occupational_hazard_info.noise_hazard_info.Max_Peak_SPL_dB
     ## other features in frequency domain
     for key, value in data.staff_occupational_hazard_info.noise_hazard_info.parameters_from_file.items(
     ):
         if (re.findall(r"\d+",
                        key.split("_")[1])
                 if len(key.split("_")) > 1 else False):
-            for func_name, func in general_calculate_func.items():
-                res[key + "_" + func_name] = func(value)
+            if key.split("_")[0] != "Leq":
+                for func_name, func in general_calculate_func.items():
+                    res[key + "_" + func_name] = func(value)
+            else:
+                res[key] = value
 
     return res
 
@@ -155,6 +160,9 @@ def get_importance_from_regressor(X: pd.DataFrame,
                               include_bias=False,
                               interaction_only=True)
     X = poly.fit_transform(X)
+    scaler = MinMaxScaler()
+    X = scaler.fit_transform(X)
+
     X_train, X_test, y_train, y_test = train_test_split(X,
                                                         y,
                                                         test_size=0.2,
@@ -168,10 +176,15 @@ def get_importance_from_regressor(X: pd.DataFrame,
     importances = model.get_feature_importance()
     featurenames = poly.get_feature_names_out()
     importances_res = dict(zip(featurenames, importances))
-    return model, importances_res
+    return model, MAE, importances_res
 
 
 if __name__ == "__main__":
+    from datetime import datetime
+    logger.add(
+        f"./log/comparasion_between_AC-{datetime.now().strftime('%Y-%m-%d')}.log",
+        level="INFO")
+
     import argparse
     parser = argparse.ArgumentParser()
     # parser.add_argument("--task", type=str, default="extract")
@@ -254,7 +267,7 @@ if __name__ == "__main__":
                 X=X,
                 y=y,
                 catboost_regressor_params=catboost_regressor_params,
-                poly_degree=2)
+                poly_degree=1)
             pickle.dump(model, open(model_path / f"regression_model_for_{y.name}.pkl", "wb"))
             pickle.dump(importances_res, open(model_path / f"feature_importance_for_{y.name}.pkl", "wb"))
 
@@ -264,5 +277,4 @@ if __name__ == "__main__":
                 output_path=picture_path,
                 is_show=is_show,
                 picture_name=f"{y.name}-feature_importances.png")
-
     print(1)
