@@ -141,9 +141,10 @@ class NoiseHazard(BaseHazard):
         self._value_check_and_replace(value_check_dict)
 
     def _cal_max_SPL(self):
-        self.Max_Peak_SPL_dB = np.max(self.Peak_SPL_dB)
-        value_check_dict = {"Max_Peak_SPL_dB": self.Max_Peak_SPL_dB}
-        self._value_check_and_replace(value_check_dict)
+        if self.Peak_SPL_dB != []:
+            self.Max_Peak_SPL_dB = np.max(self.Peak_SPL_dB)
+            value_check_dict = {"Max_Peak_SPL_dB": self.Max_Peak_SPL_dB}
+            self._value_check_and_replace(value_check_dict)
 
     def _value_check_and_replace(self, value_check_dict: dict):
         for key, value in value_check_dict.items():
@@ -151,9 +152,9 @@ class NoiseHazard(BaseHazard):
                     value - self.parameters_from_file[key]) > 1E-2:
                 logger.warning(
                     f"Calculated value {key}: {round(value,3)} does not match the \
-                              value {round(self.parameters_from_file[key],3)} load from file!!!"
+value {round(self.parameters_from_file[key],3)} load from file!!!"
                 )
-                logger.warning("Value load from file used!!!")
+                logger.warning(f"{key} value of {self.recorder_time}-{self.recorder} load from file used!!!")
                 value = self.parameters_from_file[key]
 
     def cal_adjust_L(self,
