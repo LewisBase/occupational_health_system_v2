@@ -1,8 +1,8 @@
 import re
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import statsmodels.api as sm
+from sklearn.metrics import mean_squared_error
 from scipy.stats import ttest_ind_from_stats
 from itertools import combinations
 import ast
@@ -163,3 +163,29 @@ def timeseries_train_test_split(X: pd.DataFrame,
     train_y = y.iloc[:train_size]
     test_y = y.iloc[train_size:]
     return train_X, test_X, train_y, test_y
+
+
+# 距离相关系数计算
+def dist(x, y):
+    #1d only
+    return np.abs(x[:, None] - y)
+
+def d_n(x):
+    d = dist(x, x)
+    dn = d - d.mean(0) - d.mean(1)[:,None] + d.mean()
+    return dn
+
+def dcov_all(x: np.array, y: np.array):
+    dnx = d_n(x)
+    dny = d_n(y)
+    
+    denom = np.product(dnx.shape)
+    dc = (dnx * dny).sum() / denom
+    dvx = (dnx**2).sum() / denom
+    dvy = (dny**2).sum() / denom
+    dr = dc / (np.sqrt(dvx) * np.sqrt(dvy))
+    return dr
+
+# RMSE    
+def root_mean_squared_error(y_true, y_pred):
+    return np.sqrt(mean_squared_error(y_pred=y_pred, y_true=y_true))

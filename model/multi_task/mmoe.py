@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 """
 @DATE: 2024-01-05 23:03:12
@@ -13,13 +12,12 @@ import torch
 import torch.nn as nn
 
 
-class MMOE(nn.Module):
+class MMoE(nn.Module):
     """MMoE for CTCVR problem
 
     Args:
         nn (_type_): _description_
     """
-
     def __init__(self,
                  user_feature_dict,
                  item_feature_dict,
@@ -32,6 +30,7 @@ class MMOE(nn.Module):
                  expert_activation=None,
                  num_task=2):
         """MMOE model input patameters
+        存在exoert_activation时可支持分类任务
 
         Args:
             user_feature_dict (_type_): _description_
@@ -45,14 +44,17 @@ class MMOE(nn.Module):
             expert_activation (_type_, optional): _description_. Defaults to None.
             num_task (int, optional): _description_. Defaults to 2.
         """
-        super(MMOE, self).__init__()
+        super(MMoE, self).__init__()
         # check input parameters
         if user_feature_dict is None or item_feature_dict is None:
             raise Exception(
-                "input parameter user_feature_dict and item_feature_dict must be not None")
-        if isinstance(user_feature_dict, dict) is False or isinstance(item_feature_dict, dict) is False:
+                "input parameter user_feature_dict and item_feature_dict must be not None"
+            )
+        if isinstance(user_feature_dict, dict) is False or isinstance(
+                item_feature_dict, dict) is False:
             raise Exception(
-                "input parameter user_feature_dict and item_feature_dict must be dict")
+                "input parameter user_feature_dict and item_feature_dict must be dict"
+            )
 
         self.user_feature_dict = user_feature_dict
         self.item_feature_dict = item_feature_dict
@@ -71,41 +73,49 @@ class MMOE(nn.Module):
                 setattr(self, item_cate, nn.Embedding(num[0], emb_dim))
 
         # user embedding + item embedding
-        hidden_size = emb_dim * (user_cate_feature_nums + item_cate_feature_nums) + \
-            (len(self.user_feature_dict) - user_cate_feature_nums) + (
-            len(self.item_feature_dict) - item_cate_feature_nums)
+        hidden_size = emb_dim * (
+            user_cate_feature_nums + item_cate_feature_nums) + (
+                len(self.user_feature_dict) - user_cate_feature_nums) + (
+                    len(self.item_feature_dict) - item_cate_feature_nums)
 
         # experts
-        self.experts = torch.nn.Parameter(torch.rand(
-            hidden_size, mmoe_hidden_dim, n_expert), requires_grad=True)
+        self.experts = torch.nn.Parameter(torch.rand(hidden_size,
+                                                     mmoe_hidden_dim,
+                                                     n_expert),
+                                          requires_grad=True)
         self.experts.data.normal_(0, 1)
         self.experts_bias = torch.nn.Parameter(torch.rand(
-            mmoe_hidden_dim, n_expert), requires_grad=True)
+            mmoe_hidden_dim, n_expert),
+                                               requires_grad=True)
         # gates
-        self.gates = nn.ParameterList([torch.nn.Parameter(torch.rand(
-            hidden_size, n_expert), requires_grad=True) for _ in range(num_task)])
+        self.gates = nn.ParameterList([
+            torch.nn.Parameter(torch.rand(hidden_size, n_expert),
+                               requires_grad=True) for _ in range(num_task)
+        ])
         for gate in self.gates:
             gate.data.normal_(0, 1)
-        self.gates_bias = nn.ParameterList([torch.nn.Parameter(torch.rand(
-            n_expert), requires_grad=True) for _ in range(num_task)])
+        self.gates_bias = nn.ParameterList([
+            torch.nn.Parameter(torch.rand(n_expert), requires_grad=True)
+            for _ in range(num_task)
+        ])
 
-        # esmm ctr 和ctcvr独立任务的DNN结构
+        # 独立任务的DNN结构
         for i in range(self.num_task):
-            setattr(self, 'task_{}_dnn'.format(i+1), nn.ModuleList())
+            setattr(self, f"task_{i + 1}_dnn", nn.ModuleList())
             hid_dim = [mmoe_hidden_dim] + hidden_dim
             for j in range(len(hid_dim) - 1):
-                getattr(self, 'task_{}_dnn'.format(
-                    i+1)).add_module('ctr_hidden_{}'.format(j), nn.Linear(hid_dim[j], hid_dim[j+1]))
-                getattr(self, 'task_{}_dnn'.format(i+1)).add_module(
-                    'ctr_batchnorm_{}'.format(j), nn.BatchNorm1d(hid_dim[j + 1]))
-                getattr(self, 'task_{}_dnn'.format(
-                    i+1)).add_module('ctr_dropout_{}'.format(j), nn.Dropout(dropouts[j]))
-            getattr(self, 'task_{}_dnn'.format(
-                i+1)).add_module('task_last_layer', nn.Linear(hid_dim[-1], output_size))
+                getattr(self, f"task_{i + 1}_dnn").add_module(
+                    f"dnn_hidden_{j}", nn.Linear(hid_dim[j], hid_dim[j + 1]))
+                getattr(self, f"task_{i + 1}_dnn").add_module(
+                    f"dnn_batchnorm_{j}", nn.BatchNorm1d(hid_dim[j + 1]))
+                getattr(self, f"task_{i + 1}_dnn").add_module(
+                    f"dnn_dropout_{j}", nn.Dropout(dropouts[j]))
+            getattr(self, f"task_{i + 1}_dnn").add_module(
+                "task_last_layer", nn.Linear(hid_dim[-1], output_size))
 
     def forward(self, x):
-        assert x.size()[1] == len(self.item_feature_dict) + \
-            len(self.user_feature_dict)
+        assert x.size()[1] == len(self.item_feature_dict) + len(
+            self.user_feature_dict)
         # embedding
         user_embed_list, item_embed_list = list(), list()
         for user_feature, num in self.user_feature_dict.items():
@@ -131,15 +141,15 @@ class MMOE(nn.Module):
 
         # mmoe
         # batch * mmoe)hidden_size * num_experts
-        experts_out = torch.einsum('ij, jkl -> ikl', hidden, self.experts)
+        experts_out = torch.einsum("ij, jkl -> ikl", hidden, self.experts)
         experts_out += self.experts_bias
         if self.expert_activation is not None:
             experts_out = self.expert_activation(experts_out)
 
         gates_out = list()
         for idx, gate in enumerate(self.gates):
-            gate_out = torch.einsum(
-                'ab, bc -> ac', hidden, gate)  # batch * num_experts
+            gate_out = torch.einsum("ab, bc -> ac", hidden,
+                                    gate)  # batch * num_experts
             if self.gates_bias:
                 gate_out += self.gates_bias[idx]
             gate_out = nn.Softmax(dim=-1)(gate_out)
@@ -150,8 +160,8 @@ class MMOE(nn.Module):
             expanded_gate_output = torch.unsqueeze(
                 gate_output, 1)  # batch * 1 * num_experts
             # batch * mmoe_hidden_szie * num_experts
-            weighted_expert_output = experts_out * \
-                expanded_gate_output.expand_as(experts_out)
+            weighted_expert_output = experts_out * expanded_gate_output.expand_as(
+                experts_out)
             # batch * mmoe_hidden_size
             outs.append(torch.sum(weighted_expert_output, 2))
 
@@ -159,7 +169,7 @@ class MMOE(nn.Module):
         task_outputs = list()
         for i in range(self.num_task):
             x = outs[i]
-            for mod in getattr(self, 'task_{}_dnn'.format(i+1)):
+            for mod in getattr(self, f"task_{i+1}_dnn"):
                 x = mod(x)
             task_outputs.append(x)
 
@@ -169,15 +179,20 @@ class MMOE(nn.Module):
 if __name__ == "__main__":
     import numpy as np
 
-    a = torch.from_numpy(np.array([[1, 2, 4, 2, 0.5, 0.1],
-                                   [4, 5, 3, 8, 0.6, 0.43],
-                                   [6, 3, 2, 9, 0.12, 0.32],
-                                   [9, 1, 1, 1, 0.12, 0.45],
-                                   [8, 3, 1, 4, 0.21, 0.67]]))
-    user_cate_dict = {'user_id': (11, 0), 'user_list': (
-        12, 3), 'user_num': (1, 4)}
-    item_cate_dict = {'item_id': (
-        8, 1), 'item_cate': (6, 2), 'item_num': (1, 5)}
-    mmoe = MMOE(user_cate_dict, item_cate_dict)
+    a = torch.from_numpy(
+        np.array([[1, 2, 4, 2, 0.5, 0.1], [4, 5, 3, 8, 0.6, 0.43],
+                  [6, 3, 2, 9, 0.12, 0.32], [9, 1, 1, 1, 0.12, 0.45],
+                  [8, 3, 1, 4, 0.21, 0.67]]))
+    user_cate_dict = {
+        "user_id": (11, 0),
+        "user_list": (12, 3),
+        "user_num": (1, 4)
+    }
+    item_cate_dict = {
+        "item_id": (8, 1),
+        "item_cate": (6, 2),
+        "item_num": (1, 5)
+    }
+    mmoe = MMoE(user_cate_dict, item_cate_dict)
     outs = mmoe(a)
     print(outs)
