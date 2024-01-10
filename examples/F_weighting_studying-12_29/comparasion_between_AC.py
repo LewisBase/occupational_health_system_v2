@@ -50,13 +50,13 @@ catboost_regressor_params = {
     "learning_rate": 0.05,
     "l2_leaf_reg": 3,
     "max_depth": 10,
-    "n_estimators": 1000,
-    "early_stopping_rounds": 800,
+    "n_estimators": 5000,
+    "early_stopping_rounds": 1000,
     "eval_metric": "RMSE",
     "metric_period": 50,
     "od_type": "Iter",
     "loss_function": "RMSE",
-    "verbose": 50,
+    "verbose": 1000,
     "random_seed": 42,
     "task_type": "CPU"
 }
