@@ -18,3 +18,4 @@ folium == 0.15.1
 streamlit_folium == 0.17.4
 librosa == 0.10.1
 torch == 2.1.2
+torchmetrics == 1.2.1
