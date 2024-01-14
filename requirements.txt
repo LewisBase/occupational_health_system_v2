@@ -19,3 +19,16 @@ streamlit_folium == 0.17.4
 librosa == 0.10.1
 torch == 2.1.2
 torchmetrics == 1.2.1
+gplearn == 0.4.2
+
+# physo need to be installed manually
+physo == 1.0
+# Available through conda and pip
+dot2tex == 2.11.3
+
+# Only available via pip
+pdflatex == 0.1.3
+pdf2image == 1.16.0
+pillow >= 9.0.1
+# pygraphviz == 1.9 # Install via conda recommended
+latex == 0.7.0
