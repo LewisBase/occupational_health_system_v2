@@ -189,3 +189,82 @@ def dcov_all(x: np.array, y: np.array):
 # RMSE    
 def root_mean_squared_error(y_true, y_pred):
     return np.sqrt(mean_squared_error(y_pred=y_pred, y_true=y_true))
+
+
+def mark_group_name(x,
+                    qcut_set: list = [3, 10, 25, np.inf],
+                    prefix: str = "K-") -> str:
+    """对数据按照规定的边界条件进行分组
+
+    Args:
+        x (_type_): _description_
+        qcut_set (list, optional): _description_. Defaults to [3, 10, 25, np.inf].
+        prefix (str, optional): _description_. Defaults to "K-".
+
+    Returns:
+        str: _description_
+    """
+    for i in range(len(qcut_set) - 1):
+        if qcut_set[i] < x <= qcut_set[i + 1]:
+            x = prefix + str(i + 1)
+            break
+    return x
+
+    
+@timer
+def box_data_multi(df: pd.DataFrame,
+                   col: str = "LAeq",
+                   groupby_cols: List[str] = ["kurtosis_arimean", "duration"],
+                   qcut_sets: List[list] = [[3, 10, 50, np.inf],
+                                            [0, 10, 20, np.inf]],
+                   prefixs: List[str] = ["K-", "D-"],
+                   groupby_func: str = "mean") -> pd.DataFrame:
+    """对数据在指定的多个维度上分组后，再按照某一维度进行数据聚合
+
+    Args:
+        df (pd.DataFrame): _description_
+        col (str, optional): 需要进行聚合的参照维度. Defaults to "LAeq".
+        groupby_cols (List[str], optional): 需要分组的多个维度. Defaults to ["kurtosis_arimean", "duration"].
+        qcut_sets (List[list], optional): 需要分组维度的分组边界. Defaults to [ [3, 10, 50, np.inf], [0, 10, 20, np.inf]].
+        prefixs (List[str], optional): 分组后的编号前缀. Defaults to ["K-", "D-"].
+        groupby_func (str, optional): 聚合时使用的方法. Defaults to "mean".
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+
+    for groupby_col, qcut_set, prefix in zip(groupby_cols, qcut_sets, prefixs):
+        df[groupby_col + "-group"] = df[groupby_col].apply(
+            lambda x: mark_group_name(x, qcut_set=qcut_set, prefix=prefix))
+    group_cols = seq(df.columns).filter(lambda x: x.startswith(
+        tuple(groupby_cols)) and x.endswith("-group")).list()
+    groups = df.groupby(group_cols)
+
+    df_res = pd.DataFrame()
+    for group_name, group_data in groups:
+        if (isinstance(group_name, (tuple, list))
+                and all([isinstance(name, str) for name in group_name])):
+            group_data[col] = group_data[col].astype(int)
+            if groupby_func == "mean":
+                group_data = group_data.groupby(col).mean(numeric_only=True)
+            elif groupby_func == "median":
+                group_data = group_data.groupby(col).median(numeric_only=True)
+            group_data[col] = group_data.index
+            group_data["group_name"] = "+".join(
+                [str(name) for name in group_name])
+            group_data.reset_index(inplace=True, drop=True)
+            df_res = pd.concat([df_res, group_data], axis=0)
+        elif isinstance(group_name, str):
+            group_data[col] = group_data[col].astype(int)
+            if groupby_func == "mean":
+                group_data = group_data.groupby(col).mean(numeric_only=True)
+            elif groupby_func == "median":
+                group_data = group_data.groupby(col).median(numeric_only=True)
+            group_data[col] = group_data.index
+            group_data["group_name"] = group_name
+            group_data.reset_index(inplace=True, drop=True)
+            df_res = pd.concat([df_res, group_data], axis=0)
+
+    df_res.reset_index(inplace=True, drop=True)
+    logger.info(f"Data Size = {df_res.shape[0]}")
+    return df_res
