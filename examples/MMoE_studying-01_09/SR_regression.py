@@ -180,48 +180,55 @@ if __name__ == "__main__":
         y = torch.tensor(y_train.values).to(DEVICE)
 
         # ------ Constants ------
-        const1 = torch.tensor(np.array(1.)).to(DEVICE)
-        l = torch.tensor(np.array(6.5)).to(DEVICE)
+        b0 = torch.tensor(np.array(6.5)).to(DEVICE)
+        b1 = torch.tensor(np.array(6.5)).to(DEVICE)
+        b2 = torch.tensor(np.array(6.5)).to(DEVICE)
 
         args_make_tokens = {
             # operations
             "op_names":
-            ["mul", "add", "sub", "div", "inv", "n2", "sqrt", "exp", "log"],
+            ["mul", "add", "log"],
             "use_protected_ops":
             True,
             # input variables
             "input_var_ids": {
-                "L": 0,
-                "b": 1,
+                "LAeq": 0,
+                "kurtosis": 1,
             },
             "input_var_units": {
-                "L": [1, 0, 0],
-                "b": [0, 0, 0],
+                "LAeq": [1, 0, 0],
+                "kurtosis": [0, 0, 0],
             },
             "input_var_complexity": {
-                "L": 1.,
-                "b": 1.,
+                "LAeq": 1.,
+                "kutosis": 1.,
             },
             # constants
-            "constants": {
-                "1": const1,
-            },
-            "constants_units": {
-                "1": [0, 0, 0],
-            },
-            "constants_complexity": {
-                "1": 1.,
-            },
+            # "constants": {
+            #     "1": const1,
+            # },
+            # "constants_units": {
+            #     "1": [0, 0, 0],
+            # },
+            # "constants_complexity": {
+            #     "1": 1.,
+            # },
             # free constants
-            "free_constants": {"l"},
+            "free_constants": {"b0", "b1", "b2"},
             "free_constants_init_val": {
-                "l": 1.
+                "b0": 1.,
+                "b1": 1.,
+                "b2": 1.,
             },
             "free_constants_units": {
-                "l": [1, 0, 0]
+                "b0": [1, 0, 0],
+                "b1": [0, 0, 0],
+                "b2": [1, 0, 0],
             },
             "free_constants_complexity": {
-                "l": 1.
+                "b0": 1.,
+                "b1": 1.,
+                "b2": 1.,
             },
         }
 
@@ -240,16 +247,16 @@ if __name__ == "__main__":
             "n_cpus": None,
         }
         BATCH_SIZE = int(1e3)
-        MAX_LENGTH = 7
+        MAX_LENGTH = 10
         GET_OPTIMIZER = lambda model: torch.optim.Adam(
             model.parameters(),
-            lr=0.0025,  #0.001, #0.0050, #0.0005, #1,  #lr=0.0025
+            lr=0.0020,  #0.001, #0.0050, #0.0005, #1,  #lr=0.0025
         )
         learning_config = {
             # Batch related
             'batch_size': BATCH_SIZE,
             'max_time_step': MAX_LENGTH,
-            'n_epochs': 100,
+            'n_epochs': 200,
             # Loss related
             'gamma_decay': 0.7,
             'entropy_weight': 0.005,
