@@ -150,7 +150,7 @@ if __name__ == "__main__":
                         type=dict,
                         default={
                             "mean_key": [3000, 4000, 6000],
-                            "better_ear_strategy": "optimum",
+                            "better_ear_strategy": "optimum_freq",
                             "NIPTS_diagnose_strategy": "better"
                         })
     parser.add_argument("--n_jobs", type=int, default=1)

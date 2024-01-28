@@ -7,6 +7,8 @@ from detection_info.auditory_detection import PTAResult
 
 
 class AuditoryDiagnose(BaseModel):
+    # NIPTS: float = None
+    # is_NIHL: bool = False
 
     def __init__(self, **data):
         super().__init__(**data)
