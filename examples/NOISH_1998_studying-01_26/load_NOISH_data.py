@@ -149,7 +149,7 @@ if __name__ == "__main__":
                             "better_ear_strategy": "average_freq",
                             "NIPTS_diagnose_strategy": "better"
                         })
-    parser.add_argument("--n_jobs", type=int, default=1)
+    parser.add_argument("--n_jobs", type=int, default=-1)
     args = parser.parse_args()
 
     logger.info("Input Parameters informations:")
@@ -167,7 +167,17 @@ if __name__ == "__main__":
     mesg_extract = extract_data_for_task(df=df_extract,
                                          n_jobs=n_jobs,
                                          **additional_set)
+    # calculate value test
+    HL1234 = seq(mesg_extract).map(lambda x: x.staff_health_info.auditory_detection.get("PTA").mean(mean_key=[1000, 2000, 3000, 4000])).list()
+    HL123 = seq(mesg_extract).map(lambda x: x.staff_health_info.auditory_detection.get("PTA").mean(mean_key=[1000, 2000, 3000])).list()
+    HL512 = seq(mesg_extract).map(lambda x: x.staff_health_info.auditory_detection.get("PTA").mean(mean_key=[500, 1000, 2000])).list()
+    HL346 = seq(mesg_extract).map(lambda x: x.staff_health_info.auditory_detection.get("PTA").mean(mean_key=[3000, 4000, 6000])).list()
+    for col, value in zip(("HL1234", "HL123", "HL512", "HL346"), (HL1234, HL123, HL512, HL346)):
+        value_array = (df_original[col] - value).unique()
+        value_array = seq(value_array).map(lambda x: 0 if x< 1E3 else x).set()
+        assert len(value_array) == 1 , f"Calculate results of {col} error!"
+
     file_suffix = "".join(seq(additional_set["mean_key"]).map(lambda x: str(x)[0]))
     file_suffix = "5" + file_suffix.replace("5", "") if "5" in file_suffix else file_suffix
     pickle.dump(mesg_extract, open(output_path / f"extract_NOISH_data-{file_suffix}.pkl",
-                                   "rb"))
+                                   "wb"))
