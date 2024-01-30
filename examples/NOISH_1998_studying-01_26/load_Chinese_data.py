@@ -546,6 +546,7 @@ if __name__ == "__main__":
         total_mesg_extract.append(mesg_extract)
     pickle.dump(total_mesg_extract, open(output_path / "extract_Chinese_data.pkl",
                                          "wb"))
-    # mesg_extract_load = pickle.load(
-    #     open(output_path / "extract_Chinese_data.pkl", "rb"))
+    mesg_extract_load = pickle.load(
+        open(output_path / "extract_Chinese_data.pkl", "rb"))
+    mesg_extract_load = seq(mesg_extract_load).flatten().list()
     print(1)
