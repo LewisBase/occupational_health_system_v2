@@ -268,3 +268,77 @@ def box_data_multi(df: pd.DataFrame,
     df_res.reset_index(inplace=True, drop=True)
     logger.info(f"Data Size = {df_res.shape[0]}")
     return df_res
+
+
+@timer
+def filter_data(
+    df_total: pd.DataFrame,
+    drop_col: list = ["LAeq_adjust"],
+    dropna_set: list = ["NIPTS", "kurtosis_arimean", "kurtosis_geomean"],
+    str_filter_dict: dict = {
+        "staff_id": ["Waigaoqian", "Dongfeng Reno", "Chunguang", "NSK"]
+    },
+    num_filter_dict: dict = {
+        "age": {
+            "up_limit": 60,
+            "down_limit": 15
+        },
+        "LAeq": {
+            "up_limit": 100,
+            "down_limit": 70
+        }
+    },
+    #   special_filter_dict: dict = {"kurtosis": np.nan, "SPL_dBA": np.nan},
+    eval_set: list = ["kurtosis", "SPL_dBA"]
+) -> pd.DataFrame:
+    """用于加载已经提取好信息，用于后续分析任务的数据
+
+    Args:
+        df_total (pd.DataFrame): 提取好信息的数据，打平为DataFrame
+        drop_col (list, optional): 需要丢弃的列.
+                                   Defaults to ["LAeq_adjust"].
+        dropna_set (list, optional): 需要去除nan值的列. 
+                                   Defaults to ["NIPTS", "kurtosis_arimean", "kurtosis_geomean"].
+        str_filter_dict (_type_, optional): 需要按照字符串内容进行筛选的列及筛选条件. 
+                                   Defaults to {"staff_id": [ "Waigaoqian", "Dongfeng Reno", "Chunguang", "NSK"]}.
+        num_filter_dict (_type_, optional): 需要按照数值大小进行筛选的列及筛选条件. 
+                                   Defaults to {"age": {"up_limit": 60, "down_limit": 15}, 
+                                                "LAeq": {"up_limit": 100, "down_limit": 70}}.
+        eval_set (list, optional): 需要对存储为字符串的数组、字典进行解析的列. 
+                                   Defaults to ["kurtosis", "SPL_dBA"].
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+
+    # step 0. drop invalid column
+    if drop_col:
+        df_total.drop(drop_col, axis=1, inplace=True)
+    # step 1. dropna
+    if dropna_set:
+        df_total.dropna(subset=dropna_set, inplace=True)
+    # step 2. str filter
+    if str_filter_dict:
+        for key, value in str_filter_dict.items():
+            for prefix in value:
+                if re.match(r".*-\d+", prefix):
+                    df_total = df_total[df_total[key] != prefix]
+                else:
+                    df_total = df_total[~df_total[key].str.startswith(prefix)]
+    # step 3. number filter
+    if num_filter_dict:
+        for key, subitem in num_filter_dict.items():
+            df_total = df_total[(subitem["down_limit"] <= df_total[key])
+                                & (df_total[key] <= subitem["up_limit"])]
+    # step 4. convert dtype and dropna
+    if eval_set:
+        for col in eval_set:
+            df_total[col] = df_total[col].apply(lambda x: ast.literal_eval(
+                x.replace('nan', 'None')) if isinstance(x, str) else x)
+            # 去除展开的数组中带有nan的数据
+            df_total = df_total[df_total[col].apply(lambda x: not any(
+                pd.isna(x)) if isinstance(x, (list, np.ndarray)) else x)]
+    # step 5. reset index
+    df_total.reset_index(inplace=True, drop=True)
+    logger.info(f"Data Size = {df_total.shape[0]}")
+    return df_total

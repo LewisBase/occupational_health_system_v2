@@ -481,24 +481,24 @@ if __name__ == "__main__":
     
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_paths",
-                        type=str,
-                        default=[
-                            "F:\\Mine\\之江实验室\\PostDoc\\2_课题\\WorkingData\\工厂噪声数据",
-                            "F:\\Mine\\之江实验室\\PostDoc\\2_课题\WorkingData\\东风汽车制造厂数据",
-                            "F:\\Mine\\之江实验室\\PostDoc\\2_课题\WorkingData\\工厂噪声数据-Additional",
-                            "F:\\Mine\\之江实验室\\PostDoc\\2_课题\WorkingData\\2021噪声数据-耳蜗突触病",
-                            "F:\\Mine\\之江实验室\\PostDoc\\2_课题\WorkingData\\2021噪声数据-耳蜗突触病\含噪声数据"
-                        ])
     # parser.add_argument("--input_paths",
     #                     type=str,
     #                     default=[
-    #                         # "D:\WorkingData\工厂噪声数据",
-    #                         "D:\WorkingData\东风汽车制造厂数据",
-    #                         "D:\WorkingData\工厂噪声数据-Additional",
-    #                         "D:\WorkingData\\2021噪声数据-耳蜗突触病",
-    #                         "D:\WorkingData\\2021噪声数据-耳蜗突触病\含噪声数据"
+    #                         "F:\\Mine\\之江实验室\\PostDoc\\2_课题\\WorkingData\\工厂噪声数据",
+    #                         "F:\\Mine\\之江实验室\\PostDoc\\2_课题\WorkingData\\东风汽车制造厂数据",
+    #                         "F:\\Mine\\之江实验室\\PostDoc\\2_课题\WorkingData\\工厂噪声数据-Additional",
+    #                         "F:\\Mine\\之江实验室\\PostDoc\\2_课题\WorkingData\\2021噪声数据-耳蜗突触病",
+    #                         "F:\\Mine\\之江实验室\\PostDoc\\2_课题\WorkingData\\2021噪声数据-耳蜗突触病\含噪声数据"
     #                     ])
+    parser.add_argument("--input_paths",
+                        type=str,
+                        default=[
+                            "D:\WorkingData\工厂噪声数据",
+                            "D:\WorkingData\东风汽车制造厂数据",
+                            "D:\WorkingData\工厂噪声数据-Additional",
+                            "D:\WorkingData\\2021噪声数据-耳蜗突触病",
+                            "D:\WorkingData\\2021噪声数据-耳蜗突触病\含噪声数据"
+                        ])
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--additional_set",
                         type=dict,

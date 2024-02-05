@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-@DATE: 2024-01-29 10:26:29
+@DATE: 2024-01-31 09:51:22
 @Author: Liu Hengjiang
-@File: examples\\NOISH_1998_studying-01_26\\NOISH_logistic_regression.py
+@File: examples\\NOISH_1998_studying-01_26\Chinese_logistic_regression.py
 @Software: vscode
 @Description:
-        复现NOISH,1998论文中有关逻辑回归的内容
+        针对收集的国内工人工厂噪声暴露的数据进行二分类的逻辑回归尝试
 """
+
 import re
 import ast
 import pickle
@@ -22,7 +23,7 @@ from sklearn.preprocessing import MinMaxScaler
 from scipy.optimize import minimize
 
 from staff_info import StaffInfo
-from utils.data_helper import mark_group_name
+from utils.data_helper import mark_group_name, filter_data
 
 from matplotlib.font_manager import FontProperties
 from matplotlib import rcParams
@@ -37,65 +38,23 @@ config = {
 rcParams.update(config)
 
 
-def age_box(age):
-    if age < 17:
-        return 0
-    elif 17 <= age < 28:
-        return 1
-    elif 28 <= age < 36:
-        return 2
-    elif 36 <= age < 46:
-        return 3
-    elif 46 <= age < 54:
-        return 4
-    else:
-        return 5
-
-
-def duration_box(duration):
-    if duration < 1:
-        return 0
-    elif 1 <= duration < 2:
-        return 1
-    elif 2 <= duration < 5:
-        return 2
-    elif 5 <= duration < 11:
-        return 3
-    elif 11 <= duration < 21:
-        return 4
-    else:
-        return 5
-
-
 def _extract_data_for_task(data, **additional_set):
     res = {}
     res["staff_id"] = data.staff_id
     # worker information
     res["age"] = data.staff_basic_info.age
     res["duration"] = data.staff_basic_info.duration
-    res["age_box"] = age_box(data.staff_basic_info.age)
-    res["duration_box"] = duration_box(data.staff_basic_info.duration)
 
     # worker health infomation
     res["HL1234"] = data.staff_health_info.auditory_detection.get("PTA").mean(
         mean_key=[1000, 2000, 3000, 4000])
-    res["HL5123"] = data.staff_health_info.auditory_detection.get("PTA").mean(
-        mean_key=[500, 1000, 2000, 3000])
-    res["HL123"] = data.staff_health_info.auditory_detection.get("PTA").mean(
-        mean_key=[1000, 2000, 3000])
-    res["HL512"] = data.staff_health_info.auditory_detection.get("PTA").mean(
-        mean_key=[500, 1000, 2000])
-    res["HL346"] = data.staff_health_info.auditory_detection.get("PTA").mean(
-        mean_key=[3000, 4000, 6000])
 
     res["HL1234_Y"] = 0 if res["HL1234"] <= 25 else 1
-    res["HL5123_Y"] = 0 if res["HL5123"] <= 25 else 1
-    res["HL123_Y"] = 0 if res["HL123"] <= 25 else 1
-    res["HL512_Y"] = 0 if res["HL512"] <= 25 else 1
-    res["HL346_Y"] = 0 if res["HL346"] <= 25 else 1
 
     # noise information
     res["LAeq"] = data.staff_occupational_hazard_info.noise_hazard_info.LAeq
+    res["LAeq_adjust_geomean"] = data.staff_occupational_hazard_info.noise_hazard_info.L_adjust[
+        "total_geo"]["A+n"]
 
     return res
 
@@ -110,15 +69,10 @@ def extract_data_for_task(df, n_jobs=-1, **additional_set):
 
 def logistic_func(params, x):
     alpha, beta1, beta21, beta22, beta23, phi = params
-    # alpha, beta1, beta21, beta22, beta23 = params
-    # phi = 3
     F = alpha + beta1 * x[:, 1] + beta21 * np.power(
         x[:, 3] * (x[:, 2]), phi) + beta22 * np.power(
             x[:, 4] *
             (x[:, 2]), phi) + beta23 * np.power(x[:, 5] * (x[:, 2]), phi)
-    # beta21 * np.power(x[:,3] * (x[:, 2] - L0), phi) + \
-    # beta22 * np.power(x[:,4] * (x[:, 2] - L0), phi) + \
-    # beta23 * np.power(x[:,5] * (x[:, 2] - L0), phi)
     return np.exp(F) / (1 + np.exp(F))
 
 
@@ -140,17 +94,19 @@ def statsmodels_logistic_fit(df_box, regression_X_col, regression_y_col):
 if __name__ == "__main__":
     from datetime import datetime
     logger.add(
-        f"./log/NOISH_logistic_regression-{datetime.now().strftime('%Y-%m-%d')}.log",
+        f"./log/Chinese_logistic_regression-{datetime.now().strftime('%Y-%m-%d')}.log",
         level="INFO")
 
     import argparse
     parser = argparse.ArgumentParser()
     # parser.add_argument("--input_path",
     #                     type=str,
-    #                     default="./cache/extract_NOISH_data-1234.pkl")
+    #                     default="./cache/extract_Chinese_data.pkl")
+    # parser.add_argument("--task", type=str, default="extract")
     parser.add_argument("--input_path",
                         type=str,
-                        default="./cache/NOISH_extract_df.csv")
+                        default="./cache/Chinese_extract_df.csv")
+    parser.add_argument("--task", type=str, default="analysis")
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--additional_set",
                         type=dict,
@@ -160,7 +116,57 @@ if __name__ == "__main__":
                             "better_ear_strategy": "average_freq",
                             "NIPTS_diagnose_strategy": "better"
                         })
-    parser.add_argument("--task", type=str, default="analysis")
+    parser.add_argument(
+        "--annotated_bad_case",
+        type=list,
+        default=[
+            "沃尔夫链条-60", "杭州重汽发动机有限公司-10", "浙江红旗机械有限公司-6",
+            "Wanhao furniture factory-41",
+            "Songxia electrical appliance factory-40",
+            "Songxia electrical appliance factory-18",
+            "Songxia electrical appliance factory-15",
+            "Mamibao baby carriage manufactory-77", "Liyuan hydroelectric-51",
+            "Liyuan hydroelectric-135", "Liyuan hydroelectric-112",
+            "Liyuan hydroelectric-103", "Huahui Machinery-11",
+            "Hebang brake pad manufactory-95",
+            "Hebang brake pad manufactory-94", "Gujia furniture factory-9",
+            "Gujia furniture factory-85", "Gujia furniture factory-54",
+            "Gujia furniture factory-5", "Gujia furniture factory-39",
+            "Gujia furniture factory-35",
+            "Gengde electronic equipment factory-57",
+            "Gengde electronic equipment factory-47",
+            "Changhua Auto Parts Manufactory-6",
+            "Changhua Auto Parts Manufactory-127",
+            "Botai furniture manufactory-17", "Banglian spandex-123",
+            "Changhua Auto Parts Manufactory-40", "Banglian spandex-12",
+            "Changhua Auto Parts Manufactory-270",
+            "Changhua Auto Parts Manufactory-48", "Gujia furniture factory-35",
+            "Hebang brake pad manufactory-165",
+            "Hebang brake pad manufactory-20", "Hengfeng paper mill-31",
+            "Liyuan hydroelectric-135", "Liyuan hydroelectric-30",
+            "NSK Precision Machinery Co., Ltd-109",
+            "NSK Precision Machinery Co., Ltd-345",
+            "Songxia electrical appliance factory-15",
+            "Waigaoqiao Shipyard-170", "Waigaoqiao Shipyard-94", "春风动力-119",
+            "浙江红旗机械有限公司-20", "浙江红旗机械有限公司-5", "Banglian spandex-123",
+            "Botai furniture manufactory-66",
+            "Changhua Auto Parts Manufactory-120",
+            "Changhua Auto Parts Manufactory-141",
+            "Changhua Auto Parts Manufactory-355",
+            "Changhua Auto Parts Manufactory-40", "Gujia furniture factory-39",
+            "Gujia furniture factory-5", "Gujia furniture factory-85",
+            "Hengfeng paper mill-27", "Hengjiu Machinery-15",
+            "Liyuan hydroelectric-120", "Liyuan hydroelectric-14",
+            "NSK Precision Machinery Co., Ltd-288",
+            "NSK Precision Machinery Co., Ltd-34", "Yufeng paper mill-26",
+            "春风动力-98", "春江-1", "东华链条厂-60", "东华链条厂-77", "东华链条厂-79", "双子机械-9",
+            "沃尔夫链条-59", "中国重汽杭州动力-83", "Wanhao furniture factory-24",
+            "永创智能-46", "Wanhao furniture factory-34", "永创智能-45", "总装配厂-117",
+            "总装配厂-467", "东风汽车有限公司商用车车身厂-259", "东风汽车紧固件有限公司-405",
+            "东风汽车车轮有限公司-16", "Huahui Machinery-10", "Gujia furniture factory-3",
+            # 原来用来修改的一条记录，这里直接去掉
+            "东风汽车有限公司商用车车架厂-197", 
+        ])
     parser.add_argument("--n_jobs", type=int, default=-1)
     args = parser.parse_args()
 
@@ -171,6 +177,7 @@ if __name__ == "__main__":
     input_path = Path(args.input_path)
     output_path = Path(args.output_path)
     additional_set = args.additional_set
+    annotated_bad_case = args.annotated_bad_case
     task = args.task
     n_jobs = args.n_jobs
     if not output_path.exists():
@@ -178,14 +185,32 @@ if __name__ == "__main__":
 
     if task == "extract":
         original_data = pickle.load(open(input_path, "rb"))
+        original_data = seq(original_data).flatten().list()
         extract_df = extract_data_for_task(df=original_data,
                                            n_jobs=n_jobs,
                                            **additional_set)
-        extract_df.index = extract_df.staff_id
-        extract_df.drop("staff_id", axis=1, inplace=True)
-        extract_df.to_csv(output_path / "NOISH_extract_df.csv",
-                          header=True,
-                          index=True)
+        filter_df = filter_data(
+            df_total=extract_df,
+            drop_col=None,
+            dropna_set=["HL1234", "LAeq_adjust_geomean"],
+            str_filter_dict={"staff_id": annotated_bad_case},
+            num_filter_dict={
+                "age": {
+                    "up_limit": 60,
+                    "down_limit": 15
+                },
+                "LAeq": {
+                    "up_limit": 102,
+                    "down_limit": 73 
+                },
+            },
+            eval_set=None)
+
+        filter_df.index = filter_df.staff_id
+        filter_df.drop("staff_id", axis=1, inplace=True)
+        filter_df.to_csv(output_path / "Chinese_extract_df.csv",
+                         header=True,
+                         index=True)
     if task == "analysis":
         extract_df = pd.read_csv(input_path, header=0, index_col="staff_id")
 
@@ -220,7 +245,7 @@ if __name__ == "__main__":
         y = fit_df["HL1234_Y"]
         X = fit_df.drop(columns=["HL1234_Y"])
         X = sm.add_constant(X)
-        params_init = 0.02 * np.ones(6)
+        params_init = 0.015 * np.ones(6)
         results = minimize(log_likelihood,
                            params_init,
                            args=(X.values, y.values),
@@ -230,10 +255,11 @@ if __name__ == "__main__":
 
         # plot logistic
         age = 45
-        LAeq = np.arange(73, 101)
+        LAeq = np.arange(70, 101)
         plot_X = np.stack([
             np.ones(len(LAeq)),
-            age * np.ones(len(LAeq)), (LAeq-73)/(102-73),
+            age * np.ones(len(LAeq)),
+            (LAeq - 73) / (102 - 73),
             np.zeros(len(LAeq)),
             np.zeros(len(LAeq)),
             np.ones(len(LAeq)),
