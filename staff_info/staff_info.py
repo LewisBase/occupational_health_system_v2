@@ -23,6 +23,7 @@ class StaffInfo(BaseModel):
     def _build(self, **data):
         # 员工基础信息构建
         staff_id= data.pop("staff_id")
+        name = data.pop("name", "")
         factory_name = data.pop("factory_name")
         work_shop = data.pop("work_shop")
         work_position = data.pop("work_position")
@@ -30,6 +31,7 @@ class StaffInfo(BaseModel):
         age = data.pop("age")
         duration = data.pop("duration")
         self.staff_basic_info = StaffBasicInfo(staff_id=self.staff_id,
+                                               name=name,
                                                factory_name=factory_name,
                                                work_shop=work_shop,
                                                work_position=work_position,

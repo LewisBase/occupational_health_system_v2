@@ -14,7 +14,8 @@ def load_data(file_path, sheet_name_prefix, usecols, col_names, header):
     if file_path.exists():
         xls = pd.ExcelFile(file_path)
         valid_sheet_names = seq(xls.sheet_names).filter(
-            lambda x: x.startswith(sheet_name_prefix)).list()
+            lambda x: sheet_name_prefix in x).list()
+            # lambda x: x.startswith(sheet_name_prefix)).list()
         if len(valid_sheet_names) > 1:
             raise ValueError("Too many valid sheet in File!")
         if len(valid_sheet_names) == 0:
@@ -53,19 +54,19 @@ class NoiseHazard(BaseHazard):
     kurtosis: List[float] = []
     A_kurtosis: List[float] = []
     C_kurtosis: List[float] = []
-    Max_Peak_SPL_dB: float = None
-    kurtosis_median: float = None
-    kurtosis_arimean: float = None
-    kurtosis_geomean: float = None
-    A_kurtosis_median: float = None
-    A_kurtosis_arimean: float = None
-    A_kurtosis_geomean: float = None
-    C_kurtosis_median: float = None
-    C_kurtosis_arimean: float = None
-    C_kurtosis_geomean: float = None
-    Leq: float = None
-    LAeq: float = None
-    LCeq: float = None
+    Max_Peak_SPL_dB: float = np.nan
+    kurtosis_median: float = np.nan
+    kurtosis_arimean: float = np.nan
+    kurtosis_geomean: float = np.nan
+    A_kurtosis_median: float = np.nan
+    A_kurtosis_arimean: float = np.nan
+    A_kurtosis_geomean: float = np.nan
+    C_kurtosis_median: float = np.nan
+    C_kurtosis_arimean: float = np.nan
+    C_kurtosis_geomean: float = np.nan
+    Leq: float = np.nan
+    LAeq: float = np.nan
+    LCeq: float = np.nan
     L_adjust: Dict = {
         "total_ari": {},
         "total_geo": {},
@@ -118,15 +119,15 @@ class NoiseHazard(BaseHazard):
         return cls(**useful_info)
 
     def _cal_mean_kurtosis(self):
-        self.kurtosis_median = np.median(self.kurtosis)
-        self.kurtosis_arimean = np.mean(self.kurtosis)
-        self.kurtosis_geomean = 10**(np.mean(np.log10(self.kurtosis)))
-        self.A_kurtosis_median = np.median(self.A_kurtosis)
-        self.A_kurtosis_arimean = np.mean(self.A_kurtosis)
-        self.A_kurtosis_geomean = 10**(np.mean(np.log10(self.A_kurtosis)))
-        self.C_kurtosis_median = np.median(self.C_kurtosis)
-        self.C_kurtosis_arimean = np.mean(self.C_kurtosis)
-        self.C_kurtosis_geomean = 10**(np.mean(np.log10(self.C_kurtosis)))
+        self.kurtosis_median = np.median(self.kurtosis) if self.kurtosis != [] else self.kurtosis_median
+        self.kurtosis_arimean = np.mean(self.kurtosis) if self.kurtosis != [] else self.kurtosis_arimean
+        self.kurtosis_geomean = 10**(np.mean(np.log10(self.kurtosis))) if self.kurtosis != [] else self.kurtosis_geomean
+        self.A_kurtosis_median = np.median(self.A_kurtosis) if self.A_kurtosis != [] else self.A_kurtosis_median
+        self.A_kurtosis_arimean = np.mean(self.A_kurtosis) if self.A_kurtosis != [] else self.A_kurtosis_arimean
+        self.A_kurtosis_geomean = 10**(np.mean(np.log10(self.A_kurtosis))) if self.A_kurtosis != [] else self.A_kurtosis_geomean
+        self.C_kurtosis_median = np.median(self.C_kurtosis) if self.C_kurtosis != [] else self.C_kurtosis_median
+        self.C_kurtosis_arimean = np.mean(self.C_kurtosis) if self.C_kurtosis != [] else self.C_kurtosis_arimean
+        self.C_kurtosis_geomean = 10**(np.mean(np.log10(self.C_kurtosis))) if self.C_kurtosis != [] else self.C_kurtosis_geomean
         value_check_dict = {
             "kurtosis_median": self.kurtosis_median,
             "kurtosis_arimean": self.kurtosis_arimean,
@@ -224,36 +225,38 @@ value {round(self.parameters_from_file[key],3)} load from file!!!"
         elif method == "segment_ari":
             if len(cal_parameter[K_code]["kurtosis"]) != len(
                     cal_parameter[L_code]["SPL"]):
-                raise ValueError("kurtosis data length != SPL data length!")
-            adjust_SPL_dBAs = []
-            for i in range(len(cal_parameter[K_code]["kurtosis"])):
-                if cal_parameter[L_code]["SPL"][i] >= effect_SPL:
-                    adjust_SPL_dBA = cal_parameter[L_code]["SPL"][
-                        i] + Lambda * np.log10(
-                            cal_parameter[K_code]["kurtosis"][i] /
-                            beta_baseline) if cal_parameter[K_code]["kurtosis"][
-                                i] > beta_baseline else cal_parameter[L_code][
-                                    "SPL"][i]
-                else:
-                    adjust_SPL_dBA = cal_parameter[L_code]["SPL"][i]
-                adjust_SPL_dBAs.append(adjust_SPL_dBA)
-
-            res = 10 * np.log10(np.mean(10**(np.array(adjust_SPL_dBAs) / 10)))
+                logger.error("kurtosis data length != SPL data length!")
+                res = np.nan
+            else:
+                adjust_SPL_dBAs = []
+                for i in range(len(cal_parameter[K_code]["kurtosis"])):
+                    if cal_parameter[L_code]["SPL"][i] >= effect_SPL:
+                        adjust_SPL_dBA = cal_parameter[L_code]["SPL"][
+                            i] + Lambda * np.log10(
+                                cal_parameter[K_code]["kurtosis"][i] /
+                                beta_baseline) if cal_parameter[K_code]["kurtosis"][
+                                    i] > beta_baseline else cal_parameter[L_code][
+                                        "SPL"][i]
+                    else:
+                        adjust_SPL_dBA = cal_parameter[L_code]["SPL"][i]
+                    adjust_SPL_dBAs.append(adjust_SPL_dBA)
+                res = 10 * np.log10(np.mean(10**(np.array(adjust_SPL_dBAs) / 10)))
         elif method == "segment_geo":
             if len(cal_parameter[K_code]["kurtosis"]) != len(
                     cal_parameter[L_code]["SPL"]):
-                raise ValueError("kurtosis data length != SPL data length!")
-            adjust_SPL_dBAs = []
-            for i in range(len(cal_parameter[K_code]["kurtosis"])):
-                if cal_parameter[L_code]["SPL"][i] >= effect_SPL:
-                    adjust_SPL_dBA = cal_parameter[L_code]["SPL"][
-                        i] + Lambda * np.log10(
-                            cal_parameter[K_code]["kurtosis"][i] /
-                            beta_baseline)
-                else:
-                    adjust_SPL_dBA = cal_parameter[L_code]["SPL"][i]
-                adjust_SPL_dBAs.append(adjust_SPL_dBA)
-
-            res = np.mean(adjust_SPL_dBAs)
+                logger.error("kurtosis data length != SPL data length!")
+                res = np.nan
+            else:
+                adjust_SPL_dBAs = []
+                for i in range(len(cal_parameter[K_code]["kurtosis"])):
+                    if cal_parameter[L_code]["SPL"][i] >= effect_SPL:
+                        adjust_SPL_dBA = cal_parameter[L_code]["SPL"][
+                            i] + Lambda * np.log10(
+                                cal_parameter[K_code]["kurtosis"][i] /
+                                beta_baseline)
+                    else:
+                        adjust_SPL_dBA = cal_parameter[L_code]["SPL"][i]
+                    adjust_SPL_dBAs.append(adjust_SPL_dBA)
+                res = np.mean(adjust_SPL_dBAs)
 
         self.L_adjust[method].update({algorithm_code: res})

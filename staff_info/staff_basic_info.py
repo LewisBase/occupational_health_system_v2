@@ -7,6 +7,7 @@ from typing import Union
 
 class StaffBasicInfo(BaseModel):
     staff_id: str  # 工厂名称+自增id
+    name: str = ""
     factory_name: str 
     work_shop: Union[str, float]
     work_position: Union[str, float]

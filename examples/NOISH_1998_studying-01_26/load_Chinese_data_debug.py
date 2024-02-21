@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-@DATE: 2024-01-30 16:06:14
+@DATE: 2024-02-19 17:28:37
 @Author: Liu Hengjiang
-@File: examples\\NOISH_1998_studying-01_26\load_Chinese_data.py
+@File: examples\\NOISH_1998_studying-01_26\load_Chinese_data_debug.py
 @Software: vscode
 @Description:
-        加载所有来自中国工厂的数据，包括东风厂进行匹配后的数据
+        加载数据debug用
 """
 
 import pandas as pd
@@ -106,12 +106,12 @@ def load_total_data_add_1(input_path):
     logger.info(f"Load file {file.name}")
     convert_dict = {"recorder": str, "recorder_time": str}
     usecols = [
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 
         12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 
         30, 31, 32, 34
     ]
     col_names = [
-        "name", "factory_name",  "sex", "age", "duration", "work_shop", "work_position", "LAeq", "kurtosis_arimean", "kurtosis_geomean", "kurtosis", "SPL_dBA",
+        "factory_name",  "sex", "age", "duration", "work_shop", "work_position", "LAeq", "kurtosis_arimean", "kurtosis_geomean", "kurtosis", "SPL_dBA",
         "L-500", "L-1000", "L-2000", "L-3000", "L-4000", "L-6000", "L-8000", "R-500", "R-1000", "R-2000", "R-3000", "R-4000", "R-6000", "R-8000",
         "staff_id", "recorder", "recorder_time", "parent_path"
     ]
@@ -121,12 +121,11 @@ def load_total_data_add_1(input_path):
                        names=col_names,
                        dtype=convert_dict)
     sub_df_info = df[[
-        "staff_id", "name", "factory_name", "sex", "age", "duration",
+        "staff_id", "factory_name", "sex", "age", "duration",
         "work_shop", "work_position", 
     ]]
     sub_df_info.fillna(
         {
-            "name": "",
             "work_shop": "",
             "work_position": "",
             "duration": 1,
@@ -174,11 +173,11 @@ def load_total_data_add_2(input_path):
                     logger.info(f"Load file {file.name}")
                     convert_dict = {"recorder": str, "recorder_time": str}
                     usecols = [
-                        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 19, 20, 21, 22,
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 19, 20, 21, 22,
                         23, 24, 25, 26, 27, 28, 29, 30, 31, 32
                     ]
                     col_names = [
-                        "name", "factory_name", "recorder", "recorder_time", "sex",
+                        "factory_name", "recorder", "recorder_time", "sex",
                         "age", "duration", "work_shop", "work_position",
                         "work_shedule", "smoking", "year_of_smoking",
                         "cigarette_per_day", "L-500", "L-1000", "L-2000",
@@ -194,13 +193,12 @@ def load_total_data_add_2(input_path):
                     df["staff_id"] = df[
                         "factory_name"] + "-" + df.index.astype(str)
                     sub_df_info = df[[
-                        "staff_id", "name", "factory_name", "sex", "age", "duration",
+                        "staff_id", "factory_name", "sex", "age", "duration",
                         "work_shop", "work_position", "work_shedule",
                         "smoking", "year_of_smoking", "cigarette_per_day"
                     ]]
                     sub_df_info.fillna(
                         {
-                            "name": "",
                             "work_shop": "",
                             "work_position": "",
                             "work_shedule": "",
@@ -256,12 +254,12 @@ def load_total_data_add_3(input_path):
                 "work_shop": str
             }
             usecols = [
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+                2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21,
                 22, 23, 24, 25, 26, 27, 28
             ]
             col_names = [
-                "name", "sex", "age", "duration", "factory_name", "work_shop",
-                "work_position", "recorder_time", "recorder", "Leq","LAeq",
+                "sex", "age", "duration", "factory_name", "work_shop",
+                "work_position", "recorder_time", "recorder", "LAeq",
                 "kurtosis_arimean", "kurtosis_geomean", "L-500", "L-1000",
                 "L-2000", "L-3000", "L-4000", "L-6000", "L-8000", "R-500",
                 "R-1000", "R-2000", "R-3000", "R-4000", "R-6000", "R-8000"
@@ -276,17 +274,13 @@ def load_total_data_add_3(input_path):
                 "recorder_time"]] = df[["recorder",
                                         "recorder_time"]].fillna("")
             sub_df_info = df[[
-                "staff_id", "name", "factory_name", "sex", "age", "duration",
+                "staff_id", "factory_name", "sex", "age", "duration",
                 "work_shop", "work_position"
             ]]
-            sub_df_info.fillna(
-                        {
-                            "name": "",
-                            "work_shop": "",
-                            "work_position": "",
-                            "duration": 1,
-                        },
-                        inplace=True)
+            sub_df_info[["work_shop", "work_position"
+                         ]] = sub_df_info[["work_shop",
+                                           "work_position"]].fillna("")
+            sub_df_info["duration"] = sub_df_info["duration"].fillna(1)
             sub_df_info["duration"] = sub_df_info["duration"].apply(
                 lambda x: 1 if x < 1 else x)
 
@@ -300,7 +294,7 @@ def load_total_data_add_3(input_path):
 
             noise_hazard_dict = df[[
                 "recorder", "recorder_time", "kurtosis_arimean",
-                "kurtosis_geomean", "Leq", "LAeq"
+                "kurtosis_geomean", "LAeq"
             ]].to_dict(orient="records")
             sub_df_info["noise_hazard_info"] = noise_hazard_dict
 
@@ -327,11 +321,11 @@ def load_total_data_add_4(input_path):
                         "work_shop": str
                     }
                     usecols = [
-                        1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 14, 15, 16, 17, 18, 19,
+                        2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 14, 15, 16, 17, 18, 19,
                         20, 21, 22, 23, 24, 25, 26, 27, 28
                     ]
                     col_names = [
-                        "name", "sex", "age", "duration", "factory_name", "work_shop",
+                        "sex", "age", "duration", "factory_name", "work_shop",
                         "work_position", "recorder_time", "recorder", "LAeq",
                         "kurtosis_arimean", "kurtosis_geomean", "L-500",
                         "L-1000", "L-2000", "L-3000", "L-4000", "L-6000",
@@ -349,17 +343,13 @@ def load_total_data_add_4(input_path):
                         "recorder_time"]] = df[["recorder",
                                                 "recorder_time"]].fillna("")
                     sub_df_info = df[[
-                        "staff_id", "name", "factory_name", "sex", "age", "duration",
+                        "staff_id", "factory_name", "sex", "age", "duration",
                         "work_shop", "work_position"
                     ]]
-                    sub_df_info.fillna(
-                        {
-                            "name": "",
-                            "work_shop": "",
-                            "work_position": "",
-                            "duration": 1,
-                        },
-                        inplace=True)
+                    sub_df_info[["work_shop", "work_position"]] = sub_df_info[[
+                        "work_shop", "work_position"
+                    ]].fillna("")
+                    sub_df_info["duration"] = sub_df_info["duration"].fillna(1)
                     sub_df_info["duration"] = sub_df_info["duration"].apply(
                         lambda x: 1 if x < 1 else x)
 
@@ -517,7 +507,6 @@ def _extract_data_for_task(data, task, **additional_set):
                 data["noise_hazard_info"]["kurtosis"] = noise_df["Kurtosis"].values.tolist()
                 data["noise_hazard_info"]["SPL_dBA"] = noise_df["SPL_dBA"].values.tolist()
                 data["noise_hazard_info"]["LAeq"] = noise_df["LAeq"].unique().tolist()[0]
-                data["noise_hazard_info"]["Leq"] = noise_df["Leq"].unique().tolist()[0]
                 break
         staff_info = StaffInfo(**data)
         
@@ -541,7 +530,7 @@ def extract_data_for_task(df, task, n_jobs=-1, **additional_set):
 
 if __name__ == "__main__":
     from datetime import datetime
-    logger.add(f"./log/load_Chinese_data-{datetime.now().strftime('%Y-%m-%d')}.log",level="INFO")
+    logger.add(f"./log/load_Chinese_data_debug-{datetime.now().strftime('%Y-%m-%d')}.log",level="INFO")
     
     import argparse
     parser = argparse.ArgumentParser()
@@ -557,13 +546,13 @@ if __name__ == "__main__":
     parser.add_argument("--input_paths",
                         type=str,
                         default=[
-                            # "D:\WorkingData\data_load_debug",
-                            "D:\WorkingData\工厂噪声数据-暂无C计权",
-                            "D:\WorkingData\工厂噪声数据C计权",
-                            "D:\WorkingData\东风汽车制造厂数据",
-                            "D:\WorkingData\工厂噪声数据-Additional",
-                            "D:\WorkingData\\2021噪声数据-耳蜗突触病",
-                            "D:\WorkingData\\2021噪声数据-耳蜗突触病\含噪声数据"
+                            "D:\WorkingData\data_load_debug",
+                            # "D:\WorkingData\工厂噪声数据-暂无C计权",
+                            # "D:\WorkingData\工厂噪声数据C计权",
+                            # "D:\WorkingData\东风汽车制造厂数据",
+                            # "D:\WorkingData\工厂噪声数据-Additional",
+                            # "D:\WorkingData\\2021噪声数据-耳蜗突触病",
+                            # "D:\WorkingData\\2021噪声数据-耳蜗突触病\含噪声数据"
                         ])
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--additional_set",
@@ -573,7 +562,7 @@ if __name__ == "__main__":
                             "better_ear_strategy": "optimum_freq",
                             "NIPTS_diagnose_strategy": "better"
                         })
-    parser.add_argument("--n_jobs", type=int, default=-1)
+    parser.add_argument("--n_jobs", type=int, default=1)
     args = parser.parse_args()
 
     logger.info("Input Parameters informations:")
@@ -590,19 +579,19 @@ if __name__ == "__main__":
     total_mesg_extract = []
     load_funcs = (
                   load_total_data_add_0,
-                  load_total_data_add_0,
-                  load_total_data_add_1,
-                  load_total_data_add_2,
-                  load_total_data_add_3,
-                  load_total_data_add_4
+                #   load_total_data_add_0,
+                #   load_total_data_add_1,
+                #   load_total_data_add_2,
+                #   load_total_data_add_3,
+                #   load_total_data_add_4
                   )
     task_types = (
-        "standard",
+        # "standard",
         "C-weighting",
-        "preprocessed",
-        "additional",
-        "preprocessed",
-        "standard"
+        # "preprocessed",
+        # "additional",
+        # "preprocessed",
+        # "standard"
         )
     
     for load_func, input_path, task in zip(load_funcs, input_paths, task_types):
@@ -612,9 +601,9 @@ if __name__ == "__main__":
                                              task=task,
                                              **additional_set)
         total_mesg_extract.append(mesg_extract)
-    pickle.dump(total_mesg_extract, open(output_path / "extract_Chinese_data.pkl",
+    pickle.dump(total_mesg_extract, open(output_path / "extract_Chinese_data_debug.pkl",
                                          "wb"))
     mesg_extract_load = pickle.load(
-        open(output_path / "extract_Chinese_data.pkl", "rb"))
+        open(output_path / "extract_Chinese_data_debug.pkl", "rb"))
     mesg_extract_load = seq(mesg_extract_load).flatten().list()
     print(1)
