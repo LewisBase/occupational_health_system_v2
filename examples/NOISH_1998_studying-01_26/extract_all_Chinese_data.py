@@ -29,7 +29,7 @@ general_calculate_func = {
 }
 
 
-def _extract_data_for_task(data: StaffInfo, **additional_set):
+def _extract_data_for_task(data: StaffInfo, **additional_set): # type: ignore
     mean_key = additional_set.pop("mean_key")
     better_ear_strategy = additional_set.pop("better_ear_strategy")
     NIPTS_diagnose_strategy = additional_set.pop("NIPTS_diagnose_strategy")

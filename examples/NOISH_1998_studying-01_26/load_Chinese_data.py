@@ -563,7 +563,7 @@ if __name__ == "__main__":
                             "D:\WorkingData\东风汽车制造厂数据",
                             "D:\WorkingData\工厂噪声数据-Additional",
                             "D:\WorkingData\\2021噪声数据-耳蜗突触病",
-                            "D:\WorkingData\\2021噪声数据-耳蜗突触病\含噪声数据"
+                            "D:\WorkingData\\2021噪声数据-耳蜗突触病C计权\含噪声数据"
                         ])
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--additional_set",
@@ -602,7 +602,7 @@ if __name__ == "__main__":
         "preprocessed",
         "additional",
         "preprocessed",
-        "standard"
+        "C-weighting"
         )
     
     for load_func, input_path, task in zip(load_funcs, input_paths, task_types):
