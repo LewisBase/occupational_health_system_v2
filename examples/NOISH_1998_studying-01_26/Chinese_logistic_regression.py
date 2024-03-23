@@ -53,8 +53,6 @@ def _extract_data_for_task(data, **additional_set):
 
     # noise information
     res["LAeq"] = data.staff_occupational_hazard_info.noise_hazard_info.LAeq
-    res["LAeq_adjust_geomean"] = data.staff_occupational_hazard_info.noise_hazard_info.L_adjust[
-        "total_geo"]["A+n"]
 
     return res
 
@@ -68,11 +66,16 @@ def extract_data_for_task(df, n_jobs=-1, **additional_set):
 
 
 def logistic_func(params, x):
-    alpha, beta1, beta21, beta22, beta23, phi = params
-    F = alpha + beta1 * x[:, 1] + beta21 * np.power(
-        x[:, 3] * (x[:, 2]), phi) + beta22 * np.power(
-            x[:, 4] *
-            (x[:, 2]), phi) + beta23 * np.power(x[:, 5] * (x[:, 2]), phi)
+    alpha, beta1, beta21, beta22, beta23, phi= params
+    F = alpha + beta1 * x[:, 0] + \
+        beta21 * np.power(x[:, 1], phi) + \
+        beta22 * np.power(x[:, 2], phi) + \
+        beta23 * np.power(x[:, 3], phi)
+    # alpha, beta1, beta21, beta22, beta23, phi, L0 = params
+    # F = alpha + beta1 * x[:, 0] + \
+    #     beta21 * np.power(x[:, 1] - L0, phi) + \
+    #     beta22 * np.power(x[:, 2] - L0, phi) + \
+    #     beta23 * np.power(x[:, 3] - L0, phi)
     return np.exp(F) / (1 + np.exp(F))
 
 
@@ -108,6 +111,7 @@ if __name__ == "__main__":
                         default="./cache/Chinese_extract_df.csv")
     parser.add_argument("--task", type=str, default="analysis")
     parser.add_argument("--output_path", type=str, default="./cache")
+    parser.add_argument("--models_path", type=str, default="./models")
     parser.add_argument("--additional_set",
                         type=dict,
                         default={
@@ -176,12 +180,14 @@ if __name__ == "__main__":
 
     input_path = Path(args.input_path)
     output_path = Path(args.output_path)
+    models_path = Path(args.models_path)
     additional_set = args.additional_set
     annotated_bad_case = args.annotated_bad_case
     task = args.task
     n_jobs = args.n_jobs
-    if not output_path.exists():
-        output_path.mkdir(parents=True)
+    for out_path in (output_path, models_path):
+        if not out_path.exists():
+            out_path.mkdir(parents=True)
 
     if task == "extract":
         original_data = pickle.load(open(input_path, "rb"))
@@ -192,7 +198,7 @@ if __name__ == "__main__":
         filter_df = filter_data(
             df_total=extract_df,
             drop_col=None,
-            dropna_set=["HL1234", "LAeq_adjust_geomean"],
+            dropna_set=["HL1234", "LAeq"],
             str_filter_dict={"staff_id": annotated_bad_case},
             num_filter_dict={
                 "age": {
@@ -214,64 +220,68 @@ if __name__ == "__main__":
     if task == "analysis":
         extract_df = pd.read_csv(input_path, header=0, index_col="staff_id")
 
-        # fig, ax = plt.subplots(1, figsize=(6.5, 5))
-        # ax.scatter(extract_df["LAeq"], extract_df["duration"], alpha=0.4)
-        # ax.set_xlabel("Sound Level in dB")
-        # ax.set_ylabel("Duration Expressed (years)")
-        # plt.show()
-        # plt.close()
-
-        # for Lcontrol in [60, 65, 70, 75, 79]:
-        #     extract_df["Ldiff"] = (extract_df["LAeq"] - Lcontrol)**2
-        #     regression_X_col = ["age", "Ldiff"]
-        #     regression_y_col = ["HL1234_Y"]
-        #     statsmodels_logistic_fit(df_box=extract_df,
-        #                              regression_X_col=regression_X_col,
-        #                              regression_y_col=regression_y_col)
-
         # Best model in paper
         duration_cut = [1, 4, 10, np.inf]
         extract_df["duration_box_best"] = extract_df["duration"].apply(
             lambda x: mark_group_name(x, qcut_set=duration_cut, prefix="D-"))
-        fit_df = extract_df.query(
+
+        log_likelihood_value = []
+        params_estimated = []
+        for L_control in range(60, 80):
+            fit_df = extract_df.query(
             "duration_box_best in ('D-1', 'D-2', 'D-3')")[[
                 "age", "LAeq", "duration_box_best", "HL1234_Y"
             ]]
-        fit_df = pd.get_dummies(fit_df, columns=["duration_box_best"])
-        Lcontrol = 73
-        fit_df["LAeq"] -= Lcontrol
-        fit_df["LAeq"] /= fit_df["LAeq"].max()
+            fit_df = pd.get_dummies(fit_df, columns=["duration_box_best"])
+            fit_df["LAeq"] -= L_control
+            fit_df["LAeq"] /= fit_df["LAeq"].max()
+            fit_df["duration_box_best_D-1"] *= fit_df["LAeq"]
+            fit_df["duration_box_best_D-2"] *= fit_df["LAeq"]
+            fit_df["duration_box_best_D-3"] *= fit_df["LAeq"]
 
-        y = fit_df["HL1234_Y"]
-        X = fit_df.drop(columns=["HL1234_Y"])
-        X = sm.add_constant(X)
-        params_init = 0.015 * np.ones(6)
-        results = minimize(log_likelihood,
-                           params_init,
-                           args=(X.values, y.values),
-                           method="BFGS",
-                           options={'maxiter': 100000})
-        params_estimated = results.x
+            y = fit_df["HL1234_Y"]
+            X = fit_df.drop(columns=["HL1234_Y", "LAeq"])
+            params_init = [-4.18049946, 0.07176393, 1.32653869, 2.13749184, 8.65684751, 3]
+            # params_init = 0.2 * np.ones(6)
+            results = minimize(log_likelihood,
+                               params_init,
+                               args=(X.values, y.values),
+                               method="Nelder-Mead", #"SLSQP", #"Powell", #"L-BFGS-B", #"Nelder-Mead", #"BFGS",
+                               options={'maxiter': 10000})
+            logger.info(f"Fit result for L_control = {L_control}")
+            logger.info(f"Fit status: {results.success}")
+            logger.info(f"Log likehood: {results.fun}")
+            logger.info(f"Iterations: {results.nit}")
+            
+            log_likelihood_value.append(results.fun)
+            params_estimated.append(results.x)
+        
+        max_LAeq = extract_df["LAeq"].max()
+        best_log_likelihood_value = np.min(log_likelihood_value)
+        best_params_estimated = params_estimated[np.argmin(log_likelihood_value)]
+        best_L_control = np.arange(60, 80)[np.argmin(log_likelihood_value)]
+        logger.info(f"Final result: {best_params_estimated} + {best_L_control}. Log likelihood: {best_log_likelihood_value}")
 
+        pickle.dump([best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value],
+                    open(models_path / f"Chinese_experiment_group_udlr-_classifier_model.pkl", "wb"))
+        
         # plot logistic
-        age = 45
-        LAeq = np.arange(70, 101)
+        age = 65
+        LAeq = np.arange(70, 100)
         plot_X = np.stack([
-            np.ones(len(LAeq)),
             age * np.ones(len(LAeq)),
-            (LAeq - 73) / (102 - 73),
-            np.zeros(len(LAeq)),
-            np.zeros(len(LAeq)),
-            np.ones(len(LAeq)),
+            (LAeq - best_L_control) / (max_LAeq) * np.zeros(len(LAeq)),
+            (LAeq - best_L_control) / (max_LAeq) * np.zeros(len(LAeq)),
+            (LAeq - best_L_control) / (max_LAeq) * np.ones(len(LAeq)),
         ],
                           axis=1)
-        pred_y = logistic_func(params=params_estimated, x=plot_X)
+        pred_y = logistic_func(params=best_params_estimated, x=plot_X)
         fig, ax = plt.subplots(1, figsize=(6.5, 5))
         ax.plot(LAeq, pred_y, alpha=0.4)
         ax.set_title(f"Age = {age}, Duration > 10")
         ax.set_ylabel("Probability")
         ax.set_xlabel("Sound Level in dB")
         plt.show()
-        plt.close()
+        # plt.close()
 
     print(1)

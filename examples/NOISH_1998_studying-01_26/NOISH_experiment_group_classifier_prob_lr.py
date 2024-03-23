@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-@DATE: 2024-02-18 15:02:14
+@DATE: 2024-03-12 14:48:04
 @Author: Liu Hengjiang
-@File: examples\\NOISH_1998_studying-01_26\Chinese_control_group_classifier_prob_svn.py
+@File: examples\\NOISH_1998_studying-01_26\\NOISH_experiment_group_classifier_prob_lr.py
 @Software: vscode
 @Description:
-        针对中国工人对照组数据的svn分类模型概率密度曲线
-        该概率将作为标准值用以计算超额风险概率
+        针对NOISH, 1998数据的lr分类模型概率密度曲线
 """
 
 import re
@@ -22,12 +21,12 @@ from itertools import product
 from loguru import logger
 from joblib import Parallel, delayed
 from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix
-from sklearn import svm
+from sklearn.metrics import roc_curve, roc_auc_score
+from sklearn.linear_model import LogisticRegression
 from scipy.optimize import curve_fit
 
 from staff_info import StaffInfo
-from utils.data_helper import mark_group_name, filter_data, get_categorical_indicies
+from utils.data_helper import mark_group_name, filter_data
 
 from matplotlib.font_manager import FontProperties
 from matplotlib import rcParams
@@ -46,15 +45,17 @@ def _extract_data_for_task(data, **additional_set):
     res = {}
     res["staff_id"] = data.staff_id
     # worker information
-    res["age"] = data.staff_basic_info.age
     res["sex"] = data.staff_basic_info.sex
+    res["age"] = data.staff_basic_info.age
     res["duration"] = data.staff_basic_info.duration
 
     # worker health infomation
     res["HL1234"] = data.staff_health_info.auditory_detection.get("PTA").mean(
         mean_key=[1000, 2000, 3000, 4000])
-
     res["HL1234_Y"] = 0 if res["HL1234"] <= 25 else 1
+
+    # noise information
+    res["LAeq"] = data.staff_occupational_hazard_info.noise_hazard_info.LAeq
 
     return res
 
@@ -73,19 +74,19 @@ def logistic_function(x, a, b, c):
 
 if __name__ == "__main__":
     from datetime import datetime
-    logger.add(f"./log/Chinese_control_group_classifier_prob_svn-{datetime.now().strftime('%Y-%m-%d')}.log",level="INFO")
+    logger.add(f"./log/NOISH_experiment_group_classifier_prob_lr-{datetime.now().strftime('%Y-%m-%d')}.log",level="INFO")
     
     
     import argparse
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--input_path",
-    #                     type=str,
-    #                     default="./cache/extract_Chinese_control_data.pkl")
-    # parser.add_argument("--task", type=str, default="extract")
     parser.add_argument("--input_path",
                         type=str,
-                        default="./cache/Chinese_extract_control_classifier_df.csv")
-    parser.add_argument("--task", type=str, default="analysis-train")
+                        default="./cache/extract_NOISH_data-1234.pkl")
+    parser.add_argument("--task", type=str, default="extract")
+    # parser.add_argument("--input_path",
+    #                     type=str,
+    #                     default="./cache/NOISH_extract_experiment_classifier_df.csv")
+    # parser.add_argument("--task", type=str, default="analysis-train")
     # parser.add_argument("--task", type=str, default="analysis")
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--models_path", type=str, default="./models")
@@ -148,11 +149,12 @@ if __name__ == "__main__":
 
         filter_df.index = filter_df.staff_id
         filter_df.drop("staff_id", axis=1, inplace=True)
-        filter_df.to_csv(output_path / "Chinese_extract_control_classifier_df.csv",
+        filter_df.to_csv(output_path / "NOISH_extract_experiment_classifier_df.csv",
                          header=True,
                          index=True)
     if task.startswith("analysis"):
         extract_df = pd.read_csv(input_path, header=0, index_col="staff_id")
+        extract_df.dropna(axis=0, inplace=True)
 
         # SVM classifier model
         age_cut = [15, 30, 45, 60]
@@ -164,7 +166,7 @@ if __name__ == "__main__":
             lambda x: mark_group_name(x, qcut_set=duration_cut, prefix=""))
         input_df = extract_df.query(
             "age_box in ('1','2','3') and duration_box in ('1', '2', '3')")[[
-                "sex", "age_box", "duration_box", "HL1234_Y"
+                key_feature, "sex", "age_box", "duration_box", "HL1234_Y"
             ]]
         labels = input_df["HL1234_Y"]
         features = input_df.drop(["HL1234_Y"], axis=1)
@@ -180,12 +182,12 @@ if __name__ == "__main__":
                 'C': [0.1, 1, 10], 'kernel': ['linear', 'rbf'], 'gamma': [0.1, 0.5, 1]
             }
             model = svm.SVC(probability=True, **params)
-            grid_search = GridSearchCV(model, param_grid=params, cv=5)
+            grid_search = GridSearchCV(estimator=model, param_grid=params, cv=10, verbose=1, n_jobs=n_jobs)
             grid_search.fit(train_X, train_y)
             model = grid_search.best_estimator_
-            pickle.dump(model, open(models_path / f"Chinese_control_group_svn-{key_feature}_classifier_model.pkl", "wb"))
+            pickle.dump(model, open(models_path / f"NOISH_experiment_group_lr-{key_feature}_classifier_model.pkl", "wb"))
         else:
-            model = pickle.load(open(models_path / f"Chinese_control_group_svn-{key_feature}_classifier_model.pkl", "rb"))
+            model = pickle.load(open(models_path / f"NOISH_experiment_group_lr-{key_feature}_classifier_model.pkl", "rb"))
 
         if "ROC" in plot_types:
             # 绘制ROC曲线
@@ -209,7 +211,7 @@ if __name__ == "__main__":
             plt.ylabel("True Postive Rate")
             plt.legend(loc="best")
             plt.title("ROC Curve")
-            plt.savefig(pictures_path / f"ROC-{key_feature}_fig.png")
+            plt.savefig(pictures_path / f"NOISH_experiment_group_lr-{key_feature}_ROC_fig.png")
             # plt.show()
             plt.close()
         if "PDF" in plot_types:
@@ -227,9 +229,9 @@ if __name__ == "__main__":
             ax.set_ylabel("Probability")
             ax.set_xlabel("Sound Level in dB")
             plt.legend(loc="best", ncol=2)
-            plt.savefig(pictures_path / f"Chinese_control_group_svn_prob-{key_feature}_fig.png")
+            plt.savefig(pictures_path / f"NOISH_experiment_group_lr_prob-{key_feature}_fig.png")
             plt.close(fig=fig)
-            prob_df.to_csv(output_path / f"Chinese_control_group_svn_prob-{key_feature}_df.csv", header=True, index=False)
+            prob_df.to_csv(output_path / f"NOISH_experiment_group_lr_prob-{key_feature}_df.csv", header=True, index=False)
 
             prob_df = prob_df.query("LAeq > 73")
             average_bin_value = prob_df.groupby("LAeq")["prob"].mean()
@@ -244,7 +246,7 @@ if __name__ == "__main__":
             ax.set_ylabel("Probability")
             ax.set_xlabel("Sound Level in dB")
             plt.legend(loc="best")
-            plt.savefig(pictures_path / f"Chinese_control_group_svn_average_prob-{key_feature}_fig.png")
+            plt.savefig(pictures_path / f"NOISH_experiment_group_lr_average_prob-{key_feature}_fig.png")
             plt.close(fig=fig)
 
     print(1)
