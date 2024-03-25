@@ -43,6 +43,7 @@ def _extract_data_for_task(data, **additional_set):
     res["staff_id"] = data.staff_id
     # worker information
     res["age"] = data.staff_basic_info.age
+    res["sex"] = data.staff_basic_info.sex
     res["duration"] = data.staff_basic_info.duration
 
     # worker health infomation
@@ -53,6 +54,7 @@ def _extract_data_for_task(data, **additional_set):
 
     # noise information
     res["LAeq"] = data.staff_occupational_hazard_info.noise_hazard_info.LAeq
+    res["kurtosis_arimean"] = data.staff_occupational_hazard_info.noise_hazard_info.kurtosis_arimean
 
     return res
 
@@ -205,10 +207,10 @@ if __name__ == "__main__":
                     "up_limit": 60,
                     "down_limit": 15
                 },
-                "LAeq": {
-                    "up_limit": 102,
-                    "down_limit": 73 
-                },
+                # "LAeq": {
+                #     "up_limit": 200,
+                #     "down_limit": 80 
+                # },
             },
             eval_set=None)
 
@@ -225,9 +227,10 @@ if __name__ == "__main__":
         extract_df["duration_box_best"] = extract_df["duration"].apply(
             lambda x: mark_group_name(x, qcut_set=duration_cut, prefix="D-"))
 
+        # 使用全部数据
         log_likelihood_value = []
         params_estimated = []
-        for L_control in range(60, 80):
+        for L_control in range(70, 80):
             fit_df = extract_df.query(
             "duration_box_best in ('D-1', 'D-2', 'D-3')")[[
                 "age", "LAeq", "duration_box_best", "HL1234_Y"
@@ -241,6 +244,8 @@ if __name__ == "__main__":
 
             y = fit_df["HL1234_Y"]
             X = fit_df.drop(columns=["HL1234_Y", "LAeq"])
+            # params_init = [-5.0557, 0.0812, 2.6653, 3.989, 6.4206, 3]
+            # params_init = [-4, 0.07, 1, 2, 8, 1]
             params_init = [-4.18049946, 0.07176393, 1.32653869, 2.13749184, 8.65684751, 3]
             # params_init = 0.2 * np.ones(6)
             results = minimize(log_likelihood,
@@ -259,20 +264,63 @@ if __name__ == "__main__":
         max_LAeq = extract_df["LAeq"].max()
         best_log_likelihood_value = np.min(log_likelihood_value)
         best_params_estimated = params_estimated[np.argmin(log_likelihood_value)]
-        best_L_control = np.arange(60, 80)[np.argmin(log_likelihood_value)]
+        best_L_control = np.arange(70, 80)[np.argmin(log_likelihood_value)]
         logger.info(f"Final result: {best_params_estimated} + {best_L_control}. Log likelihood: {best_log_likelihood_value}")
 
         pickle.dump([best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value],
                     open(models_path / f"Chinese_experiment_group_udlr-_classifier_model.pkl", "wb"))
+        
+        
+        # 仅使用男性数据
+        # log_likelihood_value = []
+        # params_estimated = []
+        # for L_control in range(70, 80):
+        #     fit_df = extract_df.query(
+        #     "duration_box_best in ('D-1', 'D-2', 'D-3') and sex in 'M'")[[
+        #         "age", "LAeq", "duration_box_best", "HL1234_Y"
+        #     ]]
+        #     fit_df = pd.get_dummies(fit_df, columns=["duration_box_best"])
+        #     fit_df["LAeq"] -= L_control
+        #     fit_df["LAeq"] /= fit_df["LAeq"].max()
+        #     fit_df["duration_box_best_D-1"] *= fit_df["LAeq"]
+        #     fit_df["duration_box_best_D-2"] *= fit_df["LAeq"]
+        #     fit_df["duration_box_best_D-3"] *= fit_df["LAeq"]
+
+        #     y = fit_df["HL1234_Y"]
+        #     X = fit_df.drop(columns=["HL1234_Y", "LAeq"])
+        #     # params_init = [-5.0557, 0.0812, 2.6653, 3.989, 6.4206, 3]
+        #     # params_init = [-4.18049946, 0.07176393, 1.32653869, 2.13749184, 8.65684751, 3]
+        #     # params_init = 0.2 * np.ones(6)
+        #     results = minimize(log_likelihood,
+        #                        params_init,
+        #                        args=(X.values, y.values),
+        #                        method="Nelder-Mead", #"SLSQP", #"Powell", #"L-BFGS-B", #"Nelder-Mead", #"BFGS",
+        #                        options={'maxiter': 10000})
+        #     logger.info(f"Fit result for L_control = {L_control}")
+        #     logger.info(f"Fit status: {results.success}")
+        #     logger.info(f"Log likehood: {results.fun}")
+        #     logger.info(f"Iterations: {results.nit}")
+            
+        #     log_likelihood_value.append(results.fun)
+        #     params_estimated.append(results.x)
+        
+        # max_LAeq = extract_df["LAeq"].max()
+        # best_log_likelihood_value = np.min(log_likelihood_value)
+        # best_params_estimated = params_estimated[np.argmin(log_likelihood_value)]
+        # best_L_control = np.arange(70, 80)[np.argmin(log_likelihood_value)]
+        # logger.info(f"Final result: {best_params_estimated} + {best_L_control}. Log likelihood: {best_log_likelihood_value}")
+
+        # pickle.dump([best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value],
+        #             open(models_path / f"Chinese_experiment_group_M_udlr-_classifier_model.pkl", "wb"))
         
         # plot logistic
         age = 65
         LAeq = np.arange(70, 100)
         plot_X = np.stack([
             age * np.ones(len(LAeq)),
-            (LAeq - best_L_control) / (max_LAeq) * np.zeros(len(LAeq)),
-            (LAeq - best_L_control) / (max_LAeq) * np.zeros(len(LAeq)),
-            (LAeq - best_L_control) / (max_LAeq) * np.ones(len(LAeq)),
+            (LAeq - best_L_control) / (max_LAeq - best_L_control) * np.zeros(len(LAeq)),
+            (LAeq - best_L_control) / (max_LAeq - best_L_control) * np.zeros(len(LAeq)),
+            (LAeq - best_L_control) / (max_LAeq - best_L_control) * np.ones(len(LAeq)),
         ],
                           axis=1)
         pred_y = logistic_func(params=best_params_estimated, x=plot_X)

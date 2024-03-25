@@ -241,9 +241,9 @@ if __name__ == "__main__":
         LAeq = np.arange(50, 100)
         plot_X = np.stack([
             age * np.ones(len(LAeq)),
-            (LAeq - best_L_control) / (max_LAeq) * np.zeros(len(LAeq)),
-            (LAeq - best_L_control) / (max_LAeq) * np.zeros(len(LAeq)),
-            (LAeq - best_L_control) / (max_LAeq) * np.ones(len(LAeq)),
+            (LAeq - best_L_control) / (max_LAeq - best_L_control) * np.zeros(len(LAeq)),
+            (LAeq - best_L_control) / (max_LAeq - best_L_control) * np.zeros(len(LAeq)),
+            (LAeq - best_L_control) / (max_LAeq - best_L_control) * np.ones(len(LAeq)),
         ],
                           axis=1)
         pred_y = logistic_func(params=best_params_estimated, x=plot_X)
