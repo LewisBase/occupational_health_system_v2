@@ -154,7 +154,7 @@ if __name__ == "__main__":
             "东风汽车有限公司商用车车架厂-197", 
         ])
     parser.add_argument("--n_jobs", type=int, default=-1)
-    parser.add_argument("--plot_types", type=list, default=["ROC", "PDF"])
+    parser.add_argument("--plot_types", type=list, default=["ROC"])
     parser.add_argument("--key_feature", type=str, default="LAeq")
     # parser.add_argument("--key_feature", type=str, default="LAeq_adjust_geomean")
     args = parser.parse_args()
@@ -211,7 +211,7 @@ if __name__ == "__main__":
 
         # Catboost classifier model
         age_cut = [15, 30, 40, 60]
-        duration_cut = [-1, 5, 10, np.inf]
+        duration_cut = [1, 4, 10, np.inf]
         # age_cut = [15, 30, 45, 60]
         # duration_cut = [0, 4, 10, np.inf]
         extract_df["age_box"] = extract_df["age"].apply(
@@ -219,8 +219,8 @@ if __name__ == "__main__":
         extract_df["duration_box"] = extract_df["duration"].apply(
             lambda x: mark_group_name(x, qcut_set=duration_cut, prefix="D-"))
         input_df = extract_df.query(
-            "age_box in ('A-1','A-2','A-3') and duration_box in ('D-1', 'D-2', 'D-3')")[[
-                key_feature, "sex", "age_box", "duration_box", "HL1234_Y"
+            "duration_box in ('D-1', 'D-2', 'D-3')")[[
+                key_feature, "age", "duration_box", "HL1234_Y"
             ]]
         labels = input_df["HL1234_Y"]
         features = input_df.drop(["HL1234_Y"], axis=1)

@@ -87,8 +87,8 @@ if __name__ == "__main__":
     parser.add_argument("--input_path",
                         type=str,
                         default="./cache/Chinese_extract_experiment_classifier_df.csv")
-    # parser.add_argument("--task", type=str, default="analysis-train")
-    parser.add_argument("--task", type=str, default="analysis")
+    parser.add_argument("--task", type=str, default="analysis-train")
+    # parser.add_argument("--task", type=str, default="analysis")
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--models_path", type=str, default="./models")
     parser.add_argument("--pictures_path", type=str, default="./pictures")
@@ -159,7 +159,7 @@ if __name__ == "__main__":
 
         # SVM classifier model
         age_cut = [15, 30, 40, 60]
-        duration_cut = [-1, 5, 10, np.inf]
+        duration_cut = [1, 4, 10, np.inf]
         # age_cut = [15, 30, 45, 60]
         # duration_cut = [1, 4, 10, np.inf]
         extract_df["sex"] = extract_df["sex"].map({"M":0, "F":1})
@@ -168,8 +168,8 @@ if __name__ == "__main__":
         extract_df["duration_box"] = extract_df["duration"].apply(
             lambda x: mark_group_name(x, qcut_set=duration_cut, prefix=""))
         input_df = extract_df.query(
-            "age_box in ('1','2','3') and duration_box in ('1', '2', '3')")[[
-                key_feature, "sex", "age_box", "duration_box", "HL1234_Y"
+            "duration_box in ('1', '2', '3')")[[
+                key_feature, "age", "duration_box", "HL1234_Y"
             ]]
         labels = input_df["HL1234_Y"]
         features = input_df.drop(["HL1234_Y"], axis=1)

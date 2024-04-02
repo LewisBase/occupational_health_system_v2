@@ -225,7 +225,7 @@ value {round(self.parameters_from_file[key],3)} load from file!!!"
         elif method == "segment_ari":
             if len(cal_parameter[K_code]["kurtosis"]) != len(
                     cal_parameter[L_code]["SPL"]):
-                logger.error("kurtosis data length != SPL data length!")
+                logger.error(f"{self.recorder_time}-{self.recorder}:{K_code}-kurtosis data length != {L_code}-SPL data length!")
                 res = np.nan
             else:
                 adjust_SPL_dBAs = []

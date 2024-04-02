@@ -23,6 +23,7 @@ from sklearn.preprocessing import MinMaxScaler
 from scipy.optimize import minimize
 
 from staff_info import StaffInfo
+from diagnose_info.auditory_diagnose import AuditoryDiagnose
 from utils.data_helper import mark_group_name, filter_data
 
 from matplotlib.font_manager import FontProperties
@@ -39,6 +40,9 @@ rcParams.update(config)
 
 
 def _extract_data_for_task(data, **additional_set):
+    better_ear_strategy = additional_set.pop("better_ear_strategy")
+    NIPTS_diagnose_strategy = additional_set.pop("NIPTS_diagnose_strategy")
+
     res = {}
     res["staff_id"] = data.staff_id
     # worker information
@@ -47,14 +51,32 @@ def _extract_data_for_task(data, **additional_set):
     res["duration"] = data.staff_basic_info.duration
 
     # worker health infomation
-    res["HL1234"] = data.staff_health_info.auditory_detection.get("PTA").mean(
-        mean_key=[1000, 2000, 3000, 4000])
+    res["NIHL1234"] = data.staff_health_info.auditory_detection.get(
+        "PTA").mean(mean_key=[1000, 2000, 3000, 4000])
+    res["NIHL346"] = data.staff_health_info.auditory_detection.get("PTA").mean(
+        mean_key=[3000, 4000, 6000])
+    res["NIPTS1234"] = AuditoryDiagnose.NIPTS(
+        detection_result=data.staff_health_info.auditory_detection["PTA"],
+        sex=data.staff_basic_info.sex,
+        age=data.staff_basic_info.age,
+        mean_key=[1000, 2000, 3000, 4000],
+        NIPTS_diagnose_strategy=NIPTS_diagnose_strategy)
+    res["NIPTS346"] = AuditoryDiagnose.NIPTS(
+        detection_result=data.staff_health_info.auditory_detection["PTA"],
+        sex=data.staff_basic_info.sex,
+        age=data.staff_basic_info.age,
+        mean_key=[3000, 4000, 6000],
+        NIPTS_diagnose_strategy=NIPTS_diagnose_strategy)
 
-    res["HL1234_Y"] = 0 if res["HL1234"] <= 25 else 1
+    res["NIHL1234_Y"] = 0 if res["NIHL1234"] <= 25 else 1
+    res["NIHL346_Y"] = 0 if res["NIHL346"] <= 25 else 1
+    res["NIPTS1234_Y"] = 0 if res["NIPTS1234"] <= 0 else 1
+    res["NIPTS346_Y"] = 0 if res["NIPTS346"] <= 0 else 1
 
     # noise information
     res["LAeq"] = data.staff_occupational_hazard_info.noise_hazard_info.LAeq
     res["kurtosis_arimean"] = data.staff_occupational_hazard_info.noise_hazard_info.kurtosis_arimean
+    res["kurtosis_geomean"] = data.staff_occupational_hazard_info.noise_hazard_info.kurtosis_geomean
 
     return res
 
@@ -68,16 +90,18 @@ def extract_data_for_task(df, n_jobs=-1, **additional_set):
 
 
 def logistic_func(params, x):
-    alpha, beta1, beta21, beta22, beta23, phi= params
-    F = alpha + beta1 * x[:, 0] + \
-        beta21 * np.power(x[:, 1], phi) + \
-        beta22 * np.power(x[:, 2], phi) + \
-        beta23 * np.power(x[:, 3], phi)
-    # alpha, beta1, beta21, beta22, beta23, phi, L0 = params
-    # F = alpha + beta1 * x[:, 0] + \
-    #     beta21 * np.power(x[:, 1] - L0, phi) + \
-    #     beta22 * np.power(x[:, 2] - L0, phi) + \
-    #     beta23 * np.power(x[:, 3] - L0, phi)
+    alpha, beta1, beta21, beta22, beta23, phi = params
+    F = alpha + beta1 * x[:, 0] + beta21 * np.power(
+        x[:, 1], phi) + beta22 * np.power(x[:, 2], phi) + beta23 * np.power(
+            x[:, 3], phi)
+    return np.exp(F) / (1 + np.exp(F))
+
+
+def logistic_func_new(params, phi, x):
+    alpha, beta1, beta21, beta22, beta23= params
+    F = alpha + beta1 * x[:, 0] + beta21 * np.power(
+        x[:, 1], phi) + beta22 * np.power(x[:, 2], phi) + beta23 * np.power(
+            x[:, 3], phi)
     return np.exp(F) / (1 + np.exp(F))
 
 
@@ -87,13 +111,186 @@ def log_likelihood(params, x, y):
     return log_likelihood
 
 
-def statsmodels_logistic_fit(df_box, regression_X_col, regression_y_col):
-    y = df_box[regression_y_col]
-    X = df_box[regression_X_col]
-    X = sm.add_constant(X)
-    model = sm.Logit(y, X).fit()
-    logger.info(f"{model.summary()}")
-    return model
+def log_likelihood_new(params, phi, x, y):
+    p = logistic_func_new(params, phi, x)
+    log_likelihood = -1 * np.sum(y * np.log(p) + (1 - y) * np.log(1 - p))
+    return log_likelihood
+
+
+def userdefine_logistic_regression_task(
+        fit_df: pd.DataFrame,
+        models_path: Path,
+        model_name: str,
+        y_col_name: str = "NIHL1234_Y",
+        params_init: list = [
+            -4.18049946, 0.07176393, 1.32653869, 2.13749184, 8.65684751, 3
+        ],
+        L_control_range: np.array = np.arange(70, 90),
+        phi_range = None,
+        **kwargs,
+):
+    """_summary_
+    自定义逻辑回归函数
+
+    Args:
+        fit_df (pd.DataFrame): _description_
+        models_path (Path): _description_
+        model_name (str): _description_
+        y_col_name (str, optional): _description_. Defaults to "NIHL1234_Y".
+        params_init (list, optional): _description_. Defaults to [ -4.18049946, 0.07176393, 1.32653869, 2.13749184, 8.65684751, 3 ].
+        L_control_range (np.array, optional): _description_. Defaults to np.arange(70, 90).
+        phi_range
+    """
+
+    minimize_method = kwargs.pop(
+        "minimize_method", "Nelder-Mead"
+    )  #"SLSQP", #"Powell", #"L-BFGS-B", #"Nelder-Mead", #"BFGS",
+    minimize_options = kwargs.pop("minimize_options", {'maxiter': 10000})
+    minimize_bounds = kwargs.pop("minimize_bounds", None)
+
+    log_likelihood_value = []
+    params_estimated = []
+    phi_estimated = []
+    for L_control in L_control_range:
+        work_df = fit_df.copy()
+        work_df = pd.get_dummies(work_df, columns=["duration_box_best"])
+        work_df["LAeq"] -= L_control
+        work_df["LAeq"] /= work_df["LAeq"].max()
+        work_df["duration_box_best_D-1"] *= work_df["LAeq"]
+        work_df["duration_box_best_D-2"] *= work_df["LAeq"]
+        work_df["duration_box_best_D-3"] *= work_df["LAeq"]
+
+        y = work_df[y_col_name]
+        X = work_df.drop(columns=[y_col_name, "LAeq"])
+        logger.info(f"minimize method: {minimize_method}")
+        logger.info(f"minimize bounds: {minimize_bounds}")
+        if phi_range:
+            for phi in phi_range:
+                logger.info(f"Fixed phi: {phi}")
+                results = minimize(log_likelihood_new,
+                                   params_init,
+                                   args=(phi, X.values, y.values),
+                                   method=minimize_method,
+                                   options=minimize_options,
+                                   bounds=minimize_bounds)
+                log_likelihood_value.append(results.fun)
+                params_estimated.append(results.x)
+                phi_estimated.append(phi)
+        else:
+            results = minimize(log_likelihood,
+                               params_init,
+                               args=(X.values, y.values),
+                               method=minimize_method,
+                               options=minimize_options,
+                               bounds=minimize_bounds)
+            log_likelihood_value.append(results.fun)
+            params_estimated.append(results.x)
+        logger.info(f"Fit result for L_control = {L_control}")
+        logger.info(f"Fit status: {results.success}")
+        logger.info(f"Log likehood: {round(results.fun,2)}")
+        logger.info(f"Iterations: {results.nit}")
+
+
+    max_LAeq = extract_df["LAeq"].max()
+    best_log_likelihood_value = np.min(log_likelihood_value)
+    best_params_estimated = params_estimated[np.argmin(log_likelihood_value)]
+    if phi_range:
+        best_phi_estimated = phi_estimated[np.argmin(log_likelihood_value)]
+        best_params_estimated = np.append(best_params_estimated, best_phi_estimated)
+    best_L_control = L_control_range[np.argmin(log_likelihood_value)]
+    logger.info(
+        f"Final result: {seq(best_params_estimated).map(lambda x: round(x,4))} + {best_L_control}. \n Log likelihood: {round(best_log_likelihood_value,2)}"
+    )
+
+    pickle.dump([
+        best_params_estimated, best_L_control, max_LAeq,
+        best_log_likelihood_value
+    ], open(models_path / Path(y_col_name + "-" + model_name), "wb"))
+    return best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value
+
+
+def userdefine_logistic_regression_res_plot(
+        best_params_estimated,
+        best_L_control,
+        max_LAeq,
+        age: int = 30,
+        LAeq: np.array = np.arange(70, 100),
+        duration: np.array = np.array([1, 0, 0]),
+        point_type: str = "2nd",
+        **kwargs):
+    """_summary_
+       概率曲线绘制函数
+
+    Args:
+        best_params_estimated (_type_): _description_
+        best_L_control (_type_): _description_
+        max_LAeq (_type_): _description_
+        age (int, optional): _description_. Defaults to 30.
+        LAeq (_type_, optional): _description_. Defaults to np.arange(70, 100).
+        duration (_type_, optional): _description_. Defaults to np.array([1, 0, 0]).
+    """
+    plot_der = kwargs.pop("plot_der", True)
+    
+    if duration[0] == 1:
+        duration_desp = "= 2~4"
+    elif duration[1] == 1:
+        duration_desp = "= 5~10"
+    elif duration[2] == 1:
+        duration_desp = "> 10"
+    else:
+        raise ValueError
+    logger.info(f"Params: {best_params_estimated}")
+    logger.info(f"L_control: {best_L_control}")
+    logger.info(f"max LAeq: {max_LAeq}")
+
+    LAeq_duration_matrix = np.tile(duration, (len(LAeq), 1)) * (
+        (LAeq - best_L_control) / (max_LAeq - best_L_control))[:, np.newaxis]
+    age_matrix = age * np.ones(len(LAeq))
+
+    plot_X = np.concatenate((age_matrix[:, np.newaxis], LAeq_duration_matrix),
+                            axis=1)
+    pred_y = logistic_func(x=plot_X, params=best_params_estimated)
+    f_prime = np.gradient(pred_y, LAeq)
+    f_prime_double = np.gradient(f_prime, LAeq)
+    logger.info(f"f prime: {f_prime}")
+    logger.info(f"f prime double: {f_prime_double}")
+
+    if point_type == "1st":
+        point_x = LAeq[np.nanargmax(f_prime)]
+    elif point_type == "2nd":
+        point_x = LAeq[np.nanargmax(f_prime_double)]
+    elif point_type == "2nd_critical":
+        f_prime_double_filled_nan = np.nan_to_num(f_prime_double, nan=+0.0)
+        logger.info(f"f prime double filled nan: {f_prime_double_filled_nan}")
+        diff_arr = np.diff(np.sign(f_prime_double_filled_nan))
+        point_x = LAeq[np.where(diff_arr != 0)[0] + 1][0]
+
+    age_array = np.array([age])
+    point_x_duration_array = (point_x - best_L_control) / (
+        max_LAeq - best_L_control) * duration
+    point_X = np.concatenate((age_array, point_x_duration_array),
+                             axis=0)[np.newaxis, :]
+    point_y = logistic_func(x=point_X, params=best_params_estimated)
+
+    control_X = np.concatenate((age_array, [0,0,0]), axis=0)[np.newaxis, :]
+    control_y = logistic_func(x=control_X, params=best_params_estimated)
+    fig, ax = plt.subplots(1, figsize=(6.5, 5))
+    ax.annotate(f"key point: {point_x} dB",
+                xy=(point_x, point_y - control_y),
+                xytext=(point_x - 10, point_y - control_y + 0.001),
+                color="red",
+                arrowprops=dict(color="red", arrowstyle="->"))
+    ax.plot(LAeq, pred_y - control_y, alpha=0.4)
+    ax.set_title(f"Age = {age}, Duration {duration_desp}")
+    ax.set_ylabel("Excess Risk of NIHL")
+    ax.set_xlabel("Sound Level in dB")
+    if plot_der:
+        ax2 = ax.twinx()
+        ax2.plot(LAeq, f_prime, "c--", label="1st derivative")
+        ax2.plot(LAeq, f_prime_double, "g--", label="2nd derivative")
+        ax2.vlines(x=point_x,ymin=min(f_prime_double),ymax=max(f_prime_double),color="black",linestyles=":")
+        ax2.hlines(y=0, xmin=min(LAeq), xmax=max(LAeq), colors="black", linestyles=":")
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -108,9 +305,11 @@ if __name__ == "__main__":
     #                     type=str,
     #                     default="./cache/extract_Chinese_data.pkl")
     # parser.add_argument("--task", type=str, default="extract")
-    parser.add_argument("--input_path",
-                        type=str,
-                        default="./cache/Chinese_extract_df.csv")
+    parser.add_argument(
+        "--input_path",
+        type=str,
+        default="./cache/Chinese_extract_experiment_classifier_df.csv")
+    # default="./cache/Chinese_extract_under_80dB_df.csv")
     parser.add_argument("--task", type=str, default="analysis")
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--models_path", type=str, default="./models")
@@ -126,52 +325,87 @@ if __name__ == "__main__":
         "--annotated_bad_case",
         type=list,
         default=[
-            "沃尔夫链条-60", "杭州重汽发动机有限公司-10", "浙江红旗机械有限公司-6",
+            "沃尔夫链条-60",            "杭州重汽发动机有限公司-10",
+            "浙江红旗机械有限公司-6",
             "Wanhao furniture factory-41",
             "Songxia electrical appliance factory-40",
             "Songxia electrical appliance factory-18",
             "Songxia electrical appliance factory-15",
-            "Mamibao baby carriage manufactory-77", "Liyuan hydroelectric-51",
-            "Liyuan hydroelectric-135", "Liyuan hydroelectric-112",
-            "Liyuan hydroelectric-103", "Huahui Machinery-11",
+            "Mamibao baby carriage manufactory-77",
+            "Liyuan hydroelectric-51",
+            "Liyuan hydroelectric-135",
+            "Liyuan hydroelectric-112",
+            "Liyuan hydroelectric-103",
+            "Huahui Machinery-11",
             "Hebang brake pad manufactory-95",
-            "Hebang brake pad manufactory-94", "Gujia furniture factory-9",
-            "Gujia furniture factory-85", "Gujia furniture factory-54",
-            "Gujia furniture factory-5", "Gujia furniture factory-39",
+            "Hebang brake pad manufactory-94",
+            "Gujia furniture factory-9",
+            "Gujia furniture factory-85",
+            "Gujia furniture factory-54",
+            "Gujia furniture factory-5",
+            "Gujia furniture factory-39",
             "Gujia furniture factory-35",
             "Gengde electronic equipment factory-57",
             "Gengde electronic equipment factory-47",
             "Changhua Auto Parts Manufactory-6",
             "Changhua Auto Parts Manufactory-127",
-            "Botai furniture manufactory-17", "Banglian spandex-123",
-            "Changhua Auto Parts Manufactory-40", "Banglian spandex-12",
+            "Botai furniture manufactory-17",
+            "Banglian spandex-123",
+            "Changhua Auto Parts Manufactory-40",
+            "Banglian spandex-12",
             "Changhua Auto Parts Manufactory-270",
-            "Changhua Auto Parts Manufactory-48", "Gujia furniture factory-35",
+            "Changhua Auto Parts Manufactory-48",
+            "Gujia furniture factory-35",
             "Hebang brake pad manufactory-165",
-            "Hebang brake pad manufactory-20", "Hengfeng paper mill-31",
-            "Liyuan hydroelectric-135", "Liyuan hydroelectric-30",
+            "Hebang brake pad manufactory-20",
+            "Hengfeng paper mill-31",
+            "Liyuan hydroelectric-135",
+            "Liyuan hydroelectric-30",
             "NSK Precision Machinery Co., Ltd-109",
             "NSK Precision Machinery Co., Ltd-345",
             "Songxia electrical appliance factory-15",
-            "Waigaoqiao Shipyard-170", "Waigaoqiao Shipyard-94", "春风动力-119",
-            "浙江红旗机械有限公司-20", "浙江红旗机械有限公司-5", "Banglian spandex-123",
+            "Waigaoqiao Shipyard-170",
+            "Waigaoqiao Shipyard-94",
+            "春风动力-119",
+            "浙江红旗机械有限公司-20",
+            "浙江红旗机械有限公司-5",
+            "Banglian spandex-123",
             "Botai furniture manufactory-66",
             "Changhua Auto Parts Manufactory-120",
             "Changhua Auto Parts Manufactory-141",
             "Changhua Auto Parts Manufactory-355",
-            "Changhua Auto Parts Manufactory-40", "Gujia furniture factory-39",
-            "Gujia furniture factory-5", "Gujia furniture factory-85",
-            "Hengfeng paper mill-27", "Hengjiu Machinery-15",
-            "Liyuan hydroelectric-120", "Liyuan hydroelectric-14",
+            "Changhua Auto Parts Manufactory-40",
+            "Gujia furniture factory-39",
+            "Gujia furniture factory-5",
+            "Gujia furniture factory-85",
+            "Hengfeng paper mill-27",
+            "Hengjiu Machinery-15",
+            "Liyuan hydroelectric-120",
+            "Liyuan hydroelectric-14",
             "NSK Precision Machinery Co., Ltd-288",
-            "NSK Precision Machinery Co., Ltd-34", "Yufeng paper mill-26",
-            "春风动力-98", "春江-1", "东华链条厂-60", "东华链条厂-77", "东华链条厂-79", "双子机械-9",
-            "沃尔夫链条-59", "中国重汽杭州动力-83", "Wanhao furniture factory-24",
-            "永创智能-46", "Wanhao furniture factory-34", "永创智能-45", "总装配厂-117",
-            "总装配厂-467", "东风汽车有限公司商用车车身厂-259", "东风汽车紧固件有限公司-405",
-            "东风汽车车轮有限公司-16", "Huahui Machinery-10", "Gujia furniture factory-3",
+            "NSK Precision Machinery Co., Ltd-34",
+            "Yufeng paper mill-26",
+            "春风动力-98",
+            "春江-1",
+            "东华链条厂-60",
+            "东华链条厂-77",
+            "东华链条厂-79",
+            "双子机械-9",
+            "沃尔夫链条-59",
+            "中国重汽杭州动力-83",
+            "Wanhao furniture factory-24",
+            "永创智能-46",
+            "Wanhao furniture factory-34",
+            "永创智能-45",
+            "总装配厂-117",
+            "总装配厂-467",
+            "东风汽车有限公司商用车车身厂-259",
+            "东风汽车紧固件有限公司-405",
+            "东风汽车车轮有限公司-16",
+            "Huahui Machinery-10",
+            "Gujia furniture factory-3",
             # 原来用来修改的一条记录，这里直接去掉
-            "东风汽车有限公司商用车车架厂-197", 
+            "东风汽车有限公司商用车车架厂-197",
         ])
     parser.add_argument("--n_jobs", type=int, default=-1)
     args = parser.parse_args()
@@ -200,7 +434,7 @@ if __name__ == "__main__":
         filter_df = filter_data(
             df_total=extract_df,
             drop_col=None,
-            dropna_set=["HL1234", "LAeq"],
+            dropna_set=["NIHL1234", "LAeq", "kurtosis_geomean"],
             str_filter_dict={"staff_id": annotated_bad_case},
             num_filter_dict={
                 "age": {
@@ -209,127 +443,133 @@ if __name__ == "__main__":
                 },
                 # "LAeq": {
                 #     "up_limit": 200,
-                #     "down_limit": 80 
+                #     "down_limit": 80
                 # },
             },
             eval_set=None)
 
         filter_df.index = filter_df.staff_id
         filter_df.drop("staff_id", axis=1, inplace=True)
-        filter_df.to_csv(output_path / "Chinese_extract_df.csv",
+        filter_df.to_csv(output_path /
+                         "Chinese_extract_experiment_classifier_df.csv",
                          header=True,
                          index=True)
     if task == "analysis":
         extract_df = pd.read_csv(input_path, header=0, index_col="staff_id")
 
-        # Best model in paper
+        # data type convert
         duration_cut = [1, 4, 10, np.inf]
+        kurtosis_arimean_cut = [3, 10, np.inf]
+        kurtosis_geomean_cut = [3, 6, np.inf]
         extract_df["duration_box_best"] = extract_df["duration"].apply(
             lambda x: mark_group_name(x, qcut_set=duration_cut, prefix="D-"))
+        extract_df["kurtosis_arimean_box"] = extract_df[
+            "kurtosis_arimean"].apply(lambda x: mark_group_name(
+                x, qcut_set=kurtosis_arimean_cut, prefix="KA-"))
+        extract_df["kurtosis_geomean_box"] = extract_df[
+            "kurtosis_geomean"].apply(lambda x: mark_group_name(
+                x, qcut_set=kurtosis_geomean_cut, prefix="KG-"))
 
         # 使用全部数据
-        log_likelihood_value = []
-        params_estimated = []
-        for L_control in range(70, 80):
-            fit_df = extract_df.query(
-            "duration_box_best in ('D-1', 'D-2', 'D-3')")[[
-                "age", "LAeq", "duration_box_best", "HL1234_Y"
+        ## NIHL1234_Y
+        fit_df = extract_df.query(
+            "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
+                "age", "LAeq", "duration_box_best", "NIHL1234_Y"
             ]]
-            fit_df = pd.get_dummies(fit_df, columns=["duration_box_best"])
-            fit_df["LAeq"] -= L_control
-            fit_df["LAeq"] /= fit_df["LAeq"].max()
-            fit_df["duration_box_best_D-1"] *= fit_df["LAeq"]
-            fit_df["duration_box_best_D-2"] *= fit_df["LAeq"]
-            fit_df["duration_box_best_D-3"] *= fit_df["LAeq"]
+        # best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value = \
+        #     userdefine_logistic_regression_task(
+        #     fit_df=fit_df,
+        #     models_path=models_path,
+        #     model_name="Chinese_experiment_group_udlr_model.pkl",
+        #     y_col_name="NIHL1234_Y",
+        #     params_init=[-4.18, 0.07, 1.32, 2.13, 8.65, 3],
+        #     L_control_range=np.arange(70, 90),
+        #     # minimize_method = "SLSQP",
+        #     minimize_bounds = ([-6,-4],[0.06,0.09],[0,3],[3,5],[6,9],[3,4]))
+        best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value = \
+            userdefine_logistic_regression_task(
+            fit_df=fit_df,
+            models_path=models_path,
+            model_name="Chinese_experiment_group_udlr_model.pkl",
+            y_col_name="NIHL1234_Y",
+            params_init=[-3, 0.07, 2, 4, 8.65],
+            L_control_range=np.arange(60, 80),
+            phi_range=[3],
+            minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9]))
+        userdefine_logistic_regression_res_plot(best_params_estimated=best_params_estimated,
+                                                best_L_control=best_L_control,
+                                                max_LAeq=max_LAeq,
+                                                age=65,
+                                                LAeq=np.arange(40, 150),
+                                                duration=np.array([0, 0, 1]),
+                                                point_type="2nd")
+        
+        ## NIHL346_Y
+        fit_df = extract_df.query(
+            "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
+                "age", "LAeq", "duration_box_best", "NIHL346_Y"
+            ]]
+        best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value = \
+            userdefine_logistic_regression_task(
+            fit_df=fit_df,
+            models_path=models_path,
+            model_name="Chinese_experiment_group_udlr_model.pkl",
+            y_col_name="NIHL346_Y",
+            params_init=[-3, 0.07, 2, 4, 8.65],
+            L_control_range=np.arange(60, 80),
+            phi_range=[3],
+            minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9]))
+        userdefine_logistic_regression_res_plot(best_params_estimated=best_params_estimated,
+                                                best_L_control=best_L_control,
+                                                max_LAeq=max_LAeq,
+                                                age=30,
+                                                LAeq=np.arange(40, 150),
+                                                duration=np.array([1, 0, 0]),
+                                                point_type="2nd")
 
-            y = fit_df["HL1234_Y"]
-            X = fit_df.drop(columns=["HL1234_Y", "LAeq"])
-            # params_init = [-5.0557, 0.0812, 2.6653, 3.989, 6.4206, 3]
-            # params_init = [-4, 0.07, 1, 2, 8, 1]
-            params_init = [-4.18049946, 0.07176393, 1.32653869, 2.13749184, 8.65684751, 3]
-            # params_init = 0.2 * np.ones(6)
-            results = minimize(log_likelihood,
-                               params_init,
-                               args=(X.values, y.values),
-                               method="Nelder-Mead", #"SLSQP", #"Powell", #"L-BFGS-B", #"Nelder-Mead", #"BFGS",
-                               options={'maxiter': 10000})
-            logger.info(f"Fit result for L_control = {L_control}")
-            logger.info(f"Fit status: {results.success}")
-            logger.info(f"Log likehood: {results.fun}")
-            logger.info(f"Iterations: {results.nit}")
-            
-            log_likelihood_value.append(results.fun)
-            params_estimated.append(results.x)
-        
-        max_LAeq = extract_df["LAeq"].max()
-        best_log_likelihood_value = np.min(log_likelihood_value)
-        best_params_estimated = params_estimated[np.argmin(log_likelihood_value)]
-        best_L_control = np.arange(70, 80)[np.argmin(log_likelihood_value)]
-        logger.info(f"Final result: {best_params_estimated} + {best_L_control}. Log likelihood: {best_log_likelihood_value}")
+        # 使用峰度分组数据
+        ## NIHL1234_Y+KA-1
+        fit_df = extract_df.query(
+            "duration_box_best in ('D-1', 'D-2', 'D-3') and kurtosis_arimean_box in ('KA-1')"
+        )[["age", "LAeq", "duration_box_best", "NIHL1234_Y"]]
+        best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value = \
+            userdefine_logistic_regression_task(
+            fit_df=fit_df,
+            models_path=models_path,
+            model_name="KA-1_Chinese_experiment_group_udlr_classifier_model.pkl",
+            y_col_name="NIHL1234_Y",
+            params_init=[-3, 0.07, 2, 4, 8.65],
+            L_control_range=np.arange(60, 80),
+            phi_range=[3],
+            minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9]))
+        userdefine_logistic_regression_res_plot(best_params_estimated=best_params_estimated,
+                                                best_L_control=best_L_control,
+                                                max_LAeq=max_LAeq,
+                                                age=65,
+                                                LAeq=np.arange(60, 150),
+                                                duration=np.array([0, 0, 1]),
+                                                point_type="2nd")
 
-        pickle.dump([best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value],
-                    open(models_path / f"Chinese_experiment_group_udlr-_classifier_model.pkl", "wb"))
-        
-        
-        # 仅使用男性数据
-        # log_likelihood_value = []
-        # params_estimated = []
-        # for L_control in range(70, 80):
-        #     fit_df = extract_df.query(
-        #     "duration_box_best in ('D-1', 'D-2', 'D-3') and sex in 'M'")[[
-        #         "age", "LAeq", "duration_box_best", "HL1234_Y"
-        #     ]]
-        #     fit_df = pd.get_dummies(fit_df, columns=["duration_box_best"])
-        #     fit_df["LAeq"] -= L_control
-        #     fit_df["LAeq"] /= fit_df["LAeq"].max()
-        #     fit_df["duration_box_best_D-1"] *= fit_df["LAeq"]
-        #     fit_df["duration_box_best_D-2"] *= fit_df["LAeq"]
-        #     fit_df["duration_box_best_D-3"] *= fit_df["LAeq"]
-
-        #     y = fit_df["HL1234_Y"]
-        #     X = fit_df.drop(columns=["HL1234_Y", "LAeq"])
-        #     # params_init = [-5.0557, 0.0812, 2.6653, 3.989, 6.4206, 3]
-        #     # params_init = [-4.18049946, 0.07176393, 1.32653869, 2.13749184, 8.65684751, 3]
-        #     # params_init = 0.2 * np.ones(6)
-        #     results = minimize(log_likelihood,
-        #                        params_init,
-        #                        args=(X.values, y.values),
-        #                        method="Nelder-Mead", #"SLSQP", #"Powell", #"L-BFGS-B", #"Nelder-Mead", #"BFGS",
-        #                        options={'maxiter': 10000})
-        #     logger.info(f"Fit result for L_control = {L_control}")
-        #     logger.info(f"Fit status: {results.success}")
-        #     logger.info(f"Log likehood: {results.fun}")
-        #     logger.info(f"Iterations: {results.nit}")
-            
-        #     log_likelihood_value.append(results.fun)
-        #     params_estimated.append(results.x)
-        
-        # max_LAeq = extract_df["LAeq"].max()
-        # best_log_likelihood_value = np.min(log_likelihood_value)
-        # best_params_estimated = params_estimated[np.argmin(log_likelihood_value)]
-        # best_L_control = np.arange(70, 80)[np.argmin(log_likelihood_value)]
-        # logger.info(f"Final result: {best_params_estimated} + {best_L_control}. Log likelihood: {best_log_likelihood_value}")
-
-        # pickle.dump([best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value],
-        #             open(models_path / f"Chinese_experiment_group_M_udlr-_classifier_model.pkl", "wb"))
-        
-        # plot logistic
-        age = 65
-        LAeq = np.arange(70, 100)
-        plot_X = np.stack([
-            age * np.ones(len(LAeq)),
-            (LAeq - best_L_control) / (max_LAeq - best_L_control) * np.zeros(len(LAeq)),
-            (LAeq - best_L_control) / (max_LAeq - best_L_control) * np.zeros(len(LAeq)),
-            (LAeq - best_L_control) / (max_LAeq - best_L_control) * np.ones(len(LAeq)),
-        ],
-                          axis=1)
-        pred_y = logistic_func(params=best_params_estimated, x=plot_X)
-        fig, ax = plt.subplots(1, figsize=(6.5, 5))
-        ax.plot(LAeq, pred_y, alpha=0.4)
-        ax.set_title(f"Age = {age}, Duration > 10")
-        ax.set_ylabel("Probability")
-        ax.set_xlabel("Sound Level in dB")
-        plt.show()
-        # plt.close()
+        ## NIHL1234_Y+KA-2
+        fit_df = extract_df.query(
+            "duration_box_best in ('D-1', 'D-2', 'D-3') and kurtosis_arimean_box in ('KA-2')"
+        )[["age", "LAeq", "duration_box_best", "NIHL1234_Y"]]
+        best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value = \
+            userdefine_logistic_regression_task(
+            fit_df=fit_df,
+            models_path=models_path,
+            model_name="KA-2_Chinese_experiment_group_udlr_classifier_model.pkl",
+            y_col_name="NIHL1234_Y",
+            params_init=[-3, 0.07, 2, 4, 8.65],
+            L_control_range=np.arange(60, 80),
+            phi_range=[3],
+            minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9]))
+        userdefine_logistic_regression_res_plot(best_params_estimated=best_params_estimated,
+                                                best_L_control=best_L_control,
+                                                max_LAeq=max_LAeq,
+                                                age=65,
+                                                LAeq=np.arange(40, 150),
+                                                duration=np.array([0, 0, 1]),
+                                                point_type="2nd")
 
     print(1)

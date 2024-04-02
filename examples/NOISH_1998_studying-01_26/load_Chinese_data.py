@@ -239,7 +239,8 @@ def load_total_data_add_2(input_path):
 
 def load_total_data_add_3(input_path):
     file_names = [
-        "春风动力(use this one）.xls", "东华链条厂（use this one）.xlsx",
+        # "春风动力(use this one）.xls", 
+        "东华链条厂（use this one）.xlsx",
         "力达纺织（use this one）.xlsx", "双子机械（use this one）.xlsx",
         "天地数码（use this one）.xlsx", "万通智能（use this one）.xlsx",
         "沃尔夫链条厂(use s one).xlsx", "浙江春江轻纺数据大全（use this one）.xlsx"
