@@ -23,7 +23,8 @@ from prophet import Prophet
 
 import sys
 
-sys.path.append("../../../../occupational_health_system_v2")
+sys.path.append("../../../occupational_health_system_v2")
+sys.path.append("/mount/src/occupational_health_system_v2") # 用于线上托管
 from utils.data_helper import timeseries_train_test_split
 from utils.plot_helper import plotly_forecast_res, plotly_forecast_trend, plotly_top_bar
 from examples.time_series_predict.district_time_series_predict import CITY_NAMES
