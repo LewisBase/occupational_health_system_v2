@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-@DATE: 2023-12-13 17:19:45
+@DATE: 2024-04-10 17:27:19
 @Author: Liu Hengjiang
-@File: examples\time_series_predict\time_series_predict.py
+@File: examples\\time_series_predict\disease_time_series_predict.py
 @Software: vscode
 @Description:
-        根据汇总的数据，分不同地级市进行每月进行体检并确诊的人数预测
+        根据汇总的数据，分不同疾病类型进行每月进行体检并确诊的人数预测
 """
 
 import re
@@ -137,10 +137,10 @@ def step(input_path, pictures_path, models_path, task, plot_types):
         logger.info(f"Start to analysis the data in city: {city}")
         hazard_sub_df = hazard_input_df[hazard_input_df["organization_city"] ==
                                         city]
-        top10_hazard_list = hazard_sub_df.groupby(
-            "hazard_type")["hazard_num"].sum().to_frame().sort_values(
-                by="hazard_num", ascending=False).head(10).index.tolist()
-        top10_hazard_info[city] = "\n".join(top10_hazard_list)
+        top10_hazard_prop = hazard_sub_df.groupby("hazard_type")["hazard_num"].sum().to_frame()
+        top10_hazard_prop["hazard_prop"] = top10_hazard_prop["hazard_num"] / top10_hazard_prop["hazard_num"].sum()
+        top10_hazard_dict = top10_hazard_prop.sort_values(by="hazard_prop", ascending=False)["hazard_prop"].head(10).to_dict()
+        top10_hazard_info[city] = top10_hazard_dict
 
         diagnoise_sub_df = diagnoise_input_df[
             diagnoise_input_df["organization_city"] == city]
@@ -176,8 +176,8 @@ def step(input_path, pictures_path, models_path, task, plot_types):
                                             test_y=test_y[col],
                                             ylabel=col,
                                             title=city)
-                fig_res.savefig(pictures_path /
-                                f"{city}-diagnoise-{col}_res.png")
+                # fig_res.savefig(pictures_path /
+                #                 f"{city}-diagnoise-{col}_res.png")
                 plt.close(fig=fig_res)
     pickle.dump(top10_hazard_info, open(models_path / "top10_hazard_info.pkl", "wb"))
 

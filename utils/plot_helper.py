@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Union
 from loguru import logger
 from functional import seq
+from prophet.plot import seasonality_plot_df
 
 
 # 随机抽取样本并绘制指定列的hist直方分布图
@@ -322,3 +323,138 @@ def plot_feature_importance(feature_importance: dict,
     if is_show:
         plt.show()
     plt.close(fig=fig)
+
+
+# 绘制Prophet预测结果
+def plotly_forecast_res(model,
+                      fcst,
+                      test_X,
+                      test_y,
+                      title,
+                      xlabel='date',
+                      ylabel='y',
+                      **kwargs):
+    fcst_t = fcst['ds'].dt.to_pydatetime()
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(x=model.history['ds'].dt.to_pydatetime(),
+                   y=model.history['y'],
+                   mode="markers",
+                   name='历史观测数据（训练）',
+                   marker=dict(color="black")))
+    fig.add_trace(
+        go.Scatter(x=test_X.dt.to_pydatetime(),
+                   y=test_y,
+                   mode="markers",
+                   name='历史观测数据（测试）',
+                   marker=dict(color="red")))
+    fig.add_trace(
+        go.Scatter(x=fcst_t,
+                   y=fcst['yhat'],
+                   mode="lines",
+                   name='模型预测结果',
+                   line=dict(color="blue")))
+    fig.add_trace(
+        go.Scatter(x=fcst_t,
+                   y=fcst['yhat_upper'],
+                   mode="lines",
+                   name='模型预测上界',
+                   opacity=0.2,
+                   line=dict(width=0.5, color='rgb(111, 231, 219)')))
+    fig.add_trace(
+        go.Scatter(x=fcst_t,
+                   y=fcst['yhat_lower'],
+                   mode="lines",
+                   name='模型预测下界',
+                   opacity=0.2,
+                   fill="tonexty",
+                   line=dict(width=0.5, color='rgb(111, 231, 219)')))
+    fig.update_layout(title=title,
+                      xaxis_title=xlabel,
+                      yaxis_title=ylabel,
+                      width=800,
+                      height=400,
+                      legend=dict(yanchor="top",
+                                  y=1.10,
+                                  xanchor="right",
+                                  x=0.9),
+                      font=dict(family="Courier New, monospace",
+                                size=15,
+                                color="RebeccaPurple"))
+    return fig
+
+    
+# 绘制Prophet趋势分析结果
+def plotly_forecast_trend(model,
+                        fcst,
+                        ylabel,
+                        **kwargs):
+    if ylabel == "trend":
+        plot_x = fcst["ds"].dt.to_pydatetime()
+        plot_y = fcst
+        xlabel = "Date"
+    if ylabel == "weekly":
+        days = (pd.date_range(start='2017-01-01', periods=7) +
+            pd.Timedelta(days=0))
+        df_w = seasonality_plot_df(model, days)
+        days = days.day_name()
+        plot_x = days
+        plot_y = model.predict_seasonal_components(df_w)
+        xlabel = "Day of week"
+    if ylabel == "monthly":
+        start = pd.to_datetime("2017-01-01 0000")
+        period = model.seasonalities[ylabel]["period"]
+        end = start + pd.Timedelta(days=period)
+        days = pd.to_datetime(np.linspace(start.value, end.value, int(period)))
+        df_y = seasonality_plot_df(model, days)
+        plot_x = np.arange(1, len(days)+1) 
+        plot_y = model.predict_seasonal_components(df_y)
+        xlabel = "Days"
+    
+    # start plot
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(x=plot_x,
+                   y=plot_y[ylabel],
+                   mode="lines",
+                   line=dict(color="blue")))
+    fig.add_trace(
+        go.Scatter(x=plot_x,
+                   y=plot_y[ylabel+"_upper"],
+                   mode="lines",
+                   line=dict(width=0.5, color="rgb(111, 231, 219)"))
+    )
+    fig.add_trace(
+        go.Scatter(x=plot_x,
+                   y=plot_y[ylabel+"_lower"],
+                   mode="lines",
+                   fill="tonexty",
+                   line=dict(width=0.5, color="rgb(111, 231, 219)"))
+    )
+    
+    fig.update_layout(xaxis_title=xlabel,
+                      yaxis_title=ylabel,
+                      width=800,
+                      height=400,
+                      showlegend=False,
+                      font=dict(family="Courier New, monospace",
+                                size=15,
+                                color="RebeccaPurple"))
+    return fig
+
+    
+#绘制Plotly饼状图
+def plotly_top_bar(data,
+                    **kwargs):
+    labels = seq(data.items()).map(lambda x: x[0]).list()
+    values = seq(data.items()).map(lambda x: round(100*x[1],2)).list()
+    # 用其他填补其于部分
+    if np.abs(np.sum(values) - 100) > 1:
+        labels.append("其他")
+        values.append(100-np.sum(values))
+    fig = go.Figure()
+    fig.add_trace(
+        go.Pie(labels=labels, values=values)
+    )
+    return fig

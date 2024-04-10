@@ -25,7 +25,20 @@ import sys
 
 sys.path.append("../../../occupational_health_system_v2")
 from utils.data_helper import timeseries_train_test_split
+from utils.plot_helper import plotly_forecast_res, plotly_forecast_trend, plotly_top_bar
 from examples.time_series_predict.district_time_series_predict import CITY_NAMES
+
+from matplotlib.font_manager import FontProperties
+from matplotlib import rcParams
+
+config = {
+            "font.family": "serif",
+            "font.size": 12,
+            "mathtext.fontset": "stix",# matplotlib渲染数学字体时使用的字体，和Times New Roman差别不大
+            "font.serif": ["STZhongsong"],# 华文中宋
+            "axes.unicode_minus": False # 处理负号，即-号
+         }
+rcParams.update(config)
 
 
 @st.cache_data
@@ -64,92 +77,7 @@ def load_model(models_path, city_name):
     return exam_model, diagnoise_model, hazard_res
 
 
-def plot_forecast_res(model,
-                      fcst,
-                      test_X,
-                      test_y,
-                      title,
-                      xlabel='date',
-                      ylabel='y',
-                      **kwargs):
-    fcst_t = fcst['ds'].dt.to_pydatetime()
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(x=model.history['ds'].dt.to_pydatetime(),
-                   y=model.history['y'],
-                   mode="markers",
-                   name='历史观测数据（训练）',
-                   marker=dict(color="black")))
-    fig.add_trace(
-        go.Scatter(x=test_X.dt.to_pydatetime(),
-                   y=test_y,
-                   mode="markers",
-                   name='历史观测数据（测试）',
-                   marker=dict(color="red")))
-    fig.add_trace(
-        go.Scatter(x=fcst_t,
-                   y=fcst['yhat'],
-                   mode="lines",
-                   name='模型预测结果',
-                   line=dict(color="blue")))
-    fig.add_trace(
-        go.Scatter(x=fcst_t,
-                   y=fcst['yhat_upper'],
-                   mode="lines",
-                   name='模型预测上界',
-                   opacity=0.2,
-                   line=dict(width=0.5, color='rgb(111, 231, 219)')))
-    fig.add_trace(
-        go.Scatter(x=fcst_t,
-                   y=fcst['yhat_lower'],
-                   mode="lines",
-                   name='模型预测下界',
-                   opacity=0.2,
-                   fill="tonexty",
-                   line=dict(width=0.5, color='rgb(111, 231, 219)')))
-    fig.update_layout(title=title,
-                      xaxis_title=xlabel,
-                      yaxis_title=ylabel,
-                      width=800,
-                      height=400,
-                      legend=dict(yanchor="top",
-                                  y=1.10,
-                                  xanchor="right",
-                                  x=0.9),
-                      font=dict(family="Courier New, monospace",
-                                size=15,
-                                color="RebeccaPurple"))
-    return fig
-
-
-if __name__ == "__main__":
-    from matplotlib.font_manager import FontProperties
-    from matplotlib import rcParams
-
-    config = {
-        "font.family": "serif",
-        "font.size": 12,
-        "mathtext.fontset":
-        "stix",  # matplotlib渲染数学字体时使用的字体，和Times New Roman差别不大
-        "font.serif": ["STZhongsong"],  # 华文中宋
-        "axes.unicode_minus": False  # 处理负号，即-号
-    }
-    rcParams.update(config)
-
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input_path", type=str, default="./cache")
-    parser.add_argument("--models_path", type=str, default="./models")
-    args = parser.parse_args()
-
-    logger.info("Input Parameters informations:")
-    message = "\n".join([f"{k:<20}: {v}" for k, v in vars(args).items()])
-    logger.info(message)
-
-    input_path = Path(args.input_path)
-    models_path = Path(args.models_path)
-
+def step(input_path, models_path):
     diagnoise_input_df, hazard_input_df = load_data(input_path)
 
     # 开始生成steamlit页面展示
@@ -188,8 +116,9 @@ if __name__ == "__main__":
         train_size=0.8)
 
     with st.expander("职业危害因素暴露Top 10"):
-        st.text(hazard_res)
-    with st.expander("进行职业健康体检人数变化"):
+        fig_res = plotly_top_bar(data=hazard_res)
+        st.plotly_chart(fig_res, use_container_width=True)
+    with st.expander("进行职业健康体检人数变化情况"):
         tab1, tab2 = st.tabs(["进行职业健康体检人数模型", "趋势分析"])
         periods = st.text_input("进行预测的时长（天）",
                                 value=(test_X.iloc[-1] - test_X.iloc[0]).days +
@@ -198,7 +127,7 @@ if __name__ == "__main__":
                                                   freq='D')
         forecast = exam_model.predict(future)
         with tab1:
-            fig_res = plot_forecast_res(model=exam_model,
+            fig_res = plotly_forecast_res(model=exam_model,
                                         fcst=forecast,
                                         test_X=test_X,
                                         test_y=test_y["exam_num"],
@@ -206,11 +135,16 @@ if __name__ == "__main__":
                                         title=genre)
             st.plotly_chart(fig_res, use_container_width=True)
         with tab2:
-            fig_comp = exam_model.plot_components(forecast)
-            st.pyplot(fig_comp)
+            subtab1, subtab2, subtab3 = st.tabs(["整体趋势","月内趋势","周内趋势"])
+            for subtab, titles in zip((subtab1, subtab2, subtab3),("trend", "monthly","weekly")):
+                with subtab:
+                    fig_res = plotly_forecast_trend(model=exam_model,
+                                                  fcst=forecast,
+                                                  ylabel=titles)
+                    st.plotly_chart(fig_res, use_container_width=True)
 
-    with st.expander("确诊职业健康体检人数变化"):
-        tab1, tab2 = st.tabs(["确诊职业健康体检人数模型", "趋势分析"])
+    with st.expander("确诊罹患各类职业病人数变化情况"):
+        tab1, tab2 = st.tabs(["确诊罹患各类职业病人数模型", "趋势分析"])
         periods = st.text_input("进行预测的时间（天）",
                                 value=(test_X.iloc[-1] - test_X.iloc[0]).days +
                                 1)
@@ -218,7 +152,7 @@ if __name__ == "__main__":
                                                        freq='D')
         forecast = diagnoise_model.predict(future)
         with tab1:
-            fig_res = plot_forecast_res(model=diagnoise_model,
+            fig_res = plotly_forecast_res(model=diagnoise_model,
                                         fcst=forecast,
                                         test_X=test_X,
                                         test_y=test_y["diagnoise_num"],
@@ -226,22 +160,27 @@ if __name__ == "__main__":
                                         title=genre)
             st.plotly_chart(fig_res, use_container_width=True)
         with tab2:
-            fig_comp = diagnoise_model.plot_components(forecast)
-            st.pyplot(fig_comp)
+            subtab1, subtab2, subtab3 = st.tabs(["整体趋势","月内趋势","周内趋势"])
+            for subtab, titles in zip((subtab1, subtab2, subtab3),("trend", "monthly","weekly")):
+                with subtab:
+                    fig_res = plotly_forecast_trend(model=diagnoise_model,
+                                                  fcst=forecast,
+                                                  ylabel=titles)
+                    st.plotly_chart(fig_res, use_container_width=True)
 
-    # map = folium.Map(location=[30.26, 120.19], zoom_start=9)
-    # cities = {
-    #     "杭州市": [30.26, 120.19],
-    #     "金华市": [29.71, 118.52],
-    #     "温州市": [28.02, 120.65],
-    # }
-    # for city, coord in cities.items():
-    #     folium.Marker(coord, popup=city).add_to(map)
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input_path", type=str, default="../time_series_predict/cache")
+    parser.add_argument("--models_path", type=str, default="../time_series_predict/models")
+    args = parser.parse_args()
 
-    # folium_static(map)
-    # if "click" in st.session_state:
-    #     click_data = st.session_state.click
-    #     if click_data is not None:
-    #         clicked_city = click_data["event"]["target"]["options"]["popup"]
-    #         st.markdown(f"{clicked_city}")
-    # logger.info(f"{st.session_state}")
+    logger.info("Input Parameters informations:")
+    message = "\n".join([f"{k:<20}: {v}" for k, v in vars(args).items()])
+    logger.info(message)
+
+    input_path = Path(args.input_path)
+    models_path = Path(args.models_path)
+
+
+    step(input_path, models_path)
