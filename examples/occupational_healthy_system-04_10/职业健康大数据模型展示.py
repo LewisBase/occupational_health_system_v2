@@ -8,9 +8,11 @@
         整合所有功能统一进行展示
 """
 
+import os
 import streamlit as st
 
 if __name__ == "__main__":
+    script_path = os.path.abspath(__file__)
 
     st.write("# 职业健康大数据模型案例展示")
     st.sidebar.success("点击标题查看具体案例")
@@ -44,7 +46,9 @@ if __name__ == "__main__":
 
     st.markdown("## 职业健康大数据应用构建")
     st.markdown("### 数据采集")
-    st.image("pictures/系统架构图-彩-Part1.png")
+    image_path = os.path.join(os.path.dirname(script_path), "pictures", "系统架构图-彩-Part1.png")
+    st.image(image_path)
+    st.image("./pictures/系统架构图-彩-Part1.png")
     st.markdown("""
                 * 工作场所环境数据库：所属行业类别、地址、经纬度、海拔、工作状态情况（如工作时长、流水线状况、是否配备有保护装置等），工作环境中的空间大小、人员密度、空气质量（粉尘、化学物质浓度等）、噪声、光照、辐射情况以及其他可能的风险因素；
                 * 个人医疗信息数据库： 基本健康信息（年龄、性别、职业、婚姻状况、工作地点、工作岗位等）、卫生事件摘要信息（就诊记录、就诊原因、药物记录等）、医疗费用记录信息（诊疗费用记录、保险记录等）；

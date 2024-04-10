@@ -23,6 +23,7 @@ torch == 2.1.2
 torchmetrics == 1.2.1
 gplearn == 0.4.2
 plotly == 5.9.0
+seaborn == 0.12.2
 
 # physo need to be installed manually
 # physo == 1.0
