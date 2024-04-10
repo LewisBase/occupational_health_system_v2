@@ -6,6 +6,7 @@ scipy == 1.10.1
 pyfunctional == 1.4.3
 pydantic == 2.1.1
 pathlib == 1.0.1
+loguru == 0.7.0
 xlrd == 2.0.1
 category_encoders == 2.6.2
 pyod == 1.1.1
@@ -14,15 +15,16 @@ yellowbrick == 1.5
 plotly == 5.9.0
 kaleido == 0.2.1
 prophet == 1.1.5
-folium == 0.15.1
-streamlit_folium == 0.17.4
+# folium == 0.15.1
+# streamlit_folium == 0.17.4
 librosa == 0.10.1
 torch == 2.1.2
 torchmetrics == 1.2.1
 gplearn == 0.4.2
+plotly == 5.9.0
 
 # physo need to be installed manually
-physo == 1.0
+# physo == 1.0
 # Available through conda and pip
 dot2tex == 2.11.3
 
