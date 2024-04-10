@@ -24,7 +24,7 @@ from sklearn import metrics
 
 import sys
 
-sys.path.append("../../../occupational_health_system_v2")
+sys.path.append("../../../../occupational_health_system_v2")
 
 from utils.data_helper import get_categorical_indicies
 

@@ -2,6 +2,7 @@ numpy == 1.24.3
 pandas == 1.5.3
 matplotlib == 3.7.1
 scikit-learn == 1.2.2
+catboost == 1.2
 scipy == 1.10.1
 pyfunctional == 1.4.3
 pydantic == 2.1.1
