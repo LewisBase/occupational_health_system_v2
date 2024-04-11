@@ -45,6 +45,7 @@ OCCUPATIONAL_DISEASE_TYPE_NAME = {
     "职业性神经系统疾病": "occupational_nerve_disease",
     "职业性眼病": "occupational_eye_disease",
     "职业性中毒性肾病": "occupational_kidney_disease",
+    "职业性中毒性肝病": "occupational_liver_disease",
     "职业性肿瘤": "occupational_tumor_disease",
     "职业性放射性疾病": "occupational_radio_disease",
     "职业性骨关节疾病": "occupational_bone_disease"

@@ -60,8 +60,6 @@ def load_model(models_path, disease):
     diagnoise_model = pickle.load(
         open(models_path / f"{disease}-diagnoise-model.pkl",
              "rb"))
-    disease_name_chinese = seq(
-        OCCUPATIONAL_DISEASE_TYPE_NAME.items()).filter(lambda x: x[1] == disease).list()
     return diagnoise_model
 
 
