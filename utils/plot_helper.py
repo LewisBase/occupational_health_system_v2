@@ -334,6 +334,8 @@ def plotly_forecast_res(model,
                       xlabel='date',
                       ylabel='y',
                       **kwargs):
+    legend_xy = kwargs.pop("legend_xy", (0.9, 1.10))    
+    
     fcst_t = fcst['ds'].dt.to_pydatetime()
 
     fig = go.Figure()
@@ -376,9 +378,9 @@ def plotly_forecast_res(model,
                       width=800,
                       height=400,
                       legend=dict(yanchor="top",
-                                  y=1.10,
+                                  y=legend_xy[1],
                                   xanchor="right",
-                                  x=0.9),
+                                  x=legend_xy[0]),
                       font=dict(family="Courier New, monospace",
                                 size=15,
                                 color="RebeccaPurple"))

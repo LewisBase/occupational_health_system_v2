@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-@DATE: 2024-04-10 17:27:19
+@DATE: 2024-04-11 16:37:38
 @Author: Liu Hengjiang
-@File: examples\\time_series_predict\disease_time_series_predict.py
+@File: examples\time_series_predict\disease_time_series_predict.py
 @Software: vscode
 @Description:
-        根据汇总的数据，分不同疾病类型进行每月进行体检并确诊的人数预测
+        根据汇总的数据，分不同疾病类型进行累计确诊的人数预测
 """
 
 import re
@@ -21,21 +21,34 @@ from pathlib import Path
 from functional import seq
 from loguru import logger
 
+from matplotlib.font_manager import FontProperties
+from matplotlib import rcParams
+
+config = {
+    "font.family": "serif",
+    "font.size": 12,
+    "mathtext.fontset": "stix",  # matplotlib渲染数学字体时使用的字体，和Times New Roman差别不大
+    "font.serif": ["STZhongsong"],  # 华文中宋
+    "axes.unicode_minus": False  # 处理负号，即-号
+}
+rcParams.update(config)
+
 from utils.data_helper import timeseries_train_test_split
 
-CITY_NAMES= {
-        "杭州市": "Hangzhou",
-        "丽水市": "Lishui",
-        "温州市": "Wenzhou",
-        "绍兴市": "Shaoxing",
-        "舟山市": "Zhoushan",
-        "宁波市": "Ningbo",
-        "衢州市": "Quzhou",
-        "嘉兴市": "Jiaxing",
-        "金华市": "Jinhua",
-        "台州市": "Taizhou",
-        "湖州市": "Huzhou"
-    }
+OCCUPATIONAL_DISEASE_TYPE_NAME = {
+    "职业性听力损伤": "occupational_hearing_loss",
+    "职业性皮肤病": "occupational_skin_disease",
+    "职业性心血管系统系统疾病": "occupational_heart_disease",
+    "职业性呼吸系统疾病": "occupational_breathe_disease",
+    "职业性内分泌系统疾病": "occupational_endocrinology_disease",
+    "职业性泌尿生殖系统疾病": "occupational_urinary_disease",
+    "职业性神经系统疾病": "occupational_nerve_disease",
+    "职业性眼病": "occupational_eye_disease",
+    "职业性中毒性肾病": "occupational_kidney_disease",
+    "职业性肿瘤": "occupational_tumor_disease",
+    "职业性放射性疾病": "occupational_radio_disease",
+    "职业性骨关节疾病": "occupational_bone_disease"
+}
 
 
 def prophet_model(train_X, train_y, **kwargs):
@@ -117,84 +130,61 @@ def plot_forecast_res(model,
 
 def step(input_path, pictures_path, models_path, task, plot_types):
     diagnoise_input_df = pd.read_csv(input_path /
-                                     "diagnoise_time_series_data.csv",
+                                     "disease_diagnoise_time_series_data.csv",
                                      header=0)
     diagnoise_input_df["report_issue_date"] = pd.to_datetime(
         diagnoise_input_df["report_issue_date"])
-    diagnoise_input_df.sort_values(by="report_issue_date",
+    diagnoise_input_df.sort_values(by=["report_issue_date", "diagnoise_res"],
                                    ascending=True,
                                    inplace=True)
-    hazard_input_df = pd.read_csv(input_path / "hazard_time_series_data.csv",
-                                  header=0)
-    hazard_input_df["report_issue_date"] = pd.to_datetime(
-        hazard_input_df["report_issue_date"])
-    hazard_input_df.sort_values(by="report_issue_date",
-                                ascending=True,
-                                inplace=True)
 
-    top10_hazard_info = {}
-    for city in diagnoise_input_df["organization_city"].drop_duplicates():
-        logger.info(f"Start to analysis the data in city: {city}")
-        hazard_sub_df = hazard_input_df[hazard_input_df["organization_city"] ==
-                                        city]
-        top10_hazard_prop = hazard_sub_df.groupby("hazard_type")["hazard_num"].sum().to_frame()
-        top10_hazard_prop["hazard_prop"] = top10_hazard_prop["hazard_num"] / top10_hazard_prop["hazard_num"].sum()
-        top10_hazard_dict = top10_hazard_prop.sort_values(by="hazard_prop", ascending=False)["hazard_prop"].head(10).to_dict()
-        top10_hazard_info[city] = top10_hazard_dict
-
+    disease_list = diagnoise_input_df["diagnoise_res"].drop_duplicates().tolist()
+    disease_list.remove("职业性肿瘤")
+    for disease in disease_list:
+        logger.info(f"Start to analysis the data of {disease}")
         diagnoise_sub_df = diagnoise_input_df[
-            diagnoise_input_df["organization_city"] == city]
+            diagnoise_input_df["diagnoise_res"] == disease].copy()
+        diagnoise_sub_df["diagnoise_cumsum"] = diagnoise_sub_df["diagnoise_num"].cumsum()
         train_X, test_X, train_y, test_y = timeseries_train_test_split(
             X=diagnoise_sub_df["report_issue_date"],
-            y=diagnoise_sub_df[["exam_num", "diagnoise_num"]],
+            y=diagnoise_sub_df["diagnoise_cumsum"],
             train_size=0.8)
-        for col in train_y.columns:
-            logger.info(f"Start to analysis the {col} data")
-            if task == "train":
-                model = prophet_model(train_X=train_X, train_y=train_y[col])
-                pickle.dump(
-                    model,
-                    open(models_path / f"{CITY_NAMES.get(city)}-diagnoise-{col}-model.pkl",
-                         "wb"))
-            else:
-                model = pickle.load(
-                    open(models_path / f"{CITY_NAMES.get(city)}-diagnoise-{col}-model.pkl",
-                         "rb"))
-            future = model.make_future_dataframe(
-                periods=(test_X.iloc[-1] - test_X.iloc[0]).days + 1,
-                freq='D')  #预测时长
-            forecast = model.predict(future)
-            if "comp" in plot_types:
-                fig_comp = model.plot_components(forecast)
-                fig_comp.savefig(pictures_path /
-                                 f"{city}-diagnoise-{col}_comp.png")
-                plt.close(fig=fig_comp)
-            if "res" in plot_types:
-                fig_res = plot_forecast_res(model=model,
-                                            fcst=forecast,
-                                            test_X=test_X,
-                                            test_y=test_y[col],
-                                            ylabel=col,
-                                            title=city)
-                # fig_res.savefig(pictures_path /
-                #                 f"{city}-diagnoise-{col}_res.png")
-                plt.close(fig=fig_res)
-    pickle.dump(top10_hazard_info, open(models_path / "top10_hazard_info.pkl", "wb"))
+        if task == "train":
+            model = prophet_model(train_X=train_X, train_y=train_y)
+            pickle.dump(
+                model,
+                open(
+                    models_path /
+                    f"{OCCUPATIONAL_DISEASE_TYPE_NAME.get(disease)}-diagnoise-model.pkl",
+                    "wb"))
+        else:
+            model = pickle.load(
+                open(
+                    models_path /
+                    f"{OCCUPATIONAL_DISEASE_TYPE_NAME.get(disease)}-diagnoise-model.pkl",
+                    "rb"))
+        future = model.make_future_dataframe(
+            periods=(test_X.iloc[-1] - test_X.iloc[0]).days + 22,
+            freq='D')  #预测时长
+        forecast = model.predict(future)
+        if "comp" in plot_types:
+            fig_comp = model.plot_components(forecast)
+            # fig_comp.savefig(pictures_path /
+            #                  f"{disease}-diagnoise_comp.png")
+            plt.close(fig=fig_comp)
+        if "res" in plot_types:
+            fig_res = plot_forecast_res(model=model,
+                                        fcst=forecast,
+                                        test_X=test_X,
+                                        test_y=test_y,
+                                        ylabel="cumulative diagnosis",
+                                        title=disease)
+            # fig_res.savefig(pictures_path /
+            #                 f"{city}-diagnoise-{col}_res.png")
+            plt.close(fig=fig_res)
+
 
 if __name__ == "__main__":
-    from matplotlib.font_manager import FontProperties
-    from matplotlib import rcParams
-
-    config = {
-        "font.family": "serif",
-        "font.size": 12,
-        "mathtext.fontset":
-        "stix",  # matplotlib渲染数学字体时使用的字体，和Times New Roman差别不大
-        "font.serif": ["STZhongsong"],  # 华文中宋
-        "axes.unicode_minus": False  # 处理负号，即-号
-    }
-    rcParams.update(config)
-
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_path", type=str, default="./cache")
