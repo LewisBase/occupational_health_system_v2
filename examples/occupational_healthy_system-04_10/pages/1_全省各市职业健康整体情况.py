@@ -10,16 +10,10 @@
 
 import streamlit as st
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import plotly.graph_objects as go
-import folium
 import pickle
-from streamlit_folium import folium_static
 from loguru import logger
 from pathlib import Path
 from functional import seq
-from prophet import Prophet
 
 import sys
 
@@ -27,7 +21,7 @@ sys.path.append("../../../occupational_health_system_v2")
 sys.path.append("/mount/src/occupational_health_system_v2") # 用于线上托管
 from utils.data_helper import timeseries_train_test_split
 from utils.plot_helper import plotly_forecast_res, plotly_forecast_trend, plotly_top_bar
-from examples.time_series_predict.district_time_series_predict import CITY_NAMES
+from examples.occhs_time_series_predict.district_time_series_predict import CITY_NAMES
 
 from matplotlib.font_manager import FontProperties
 from matplotlib import rcParams
@@ -172,10 +166,10 @@ def step(input_path, models_path):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--input_path", type=str, default="../time_series_predict/cache")
-    # parser.add_argument("--models_path", type=str, default="../time_series_predict/models")
-    parser.add_argument("--input_path", type=str, default="/mount/src/occupational_health_system_v2/examples/time_series_predict/cache")
-    parser.add_argument("--models_path", type=str, default="/mount/src/occupational_health_system_v2/examples/time_series_predict/models")
+    # parser.add_argument("--input_path", type=str, default="../occhs_time_series_predict/cache")
+    # parser.add_argument("--models_path", type=str, default="../occhs_time_series_predict/models")
+    parser.add_argument("--input_path", type=str, default="/mount/src/occupational_health_system_v2/examples/occhs_time_series_predict/cache")
+    parser.add_argument("--models_path", type=str, default="/mount/src/occupational_health_system_v2/examples/occhs_time_series_predict/models")
     args = parser.parse_args()
 
     logger.info("Input Parameters informations:")

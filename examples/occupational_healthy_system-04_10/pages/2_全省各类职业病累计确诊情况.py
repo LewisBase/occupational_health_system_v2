@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-@DATE: 2024-04-11 21:23:10
+@DATE: 2024-04-12 10:54:17
 @Author: Liu Hengjiang
 @File: examples\occupational_healthy_system-04_10\pages\\2_全省各类职业病累计确诊情况.py
 @Software: vscode
@@ -10,16 +10,10 @@
 
 import streamlit as st
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import plotly.graph_objects as go
-import folium
 import pickle
-from streamlit_folium import folium_static
 from loguru import logger
 from pathlib import Path
 from functional import seq
-from prophet import Prophet
 
 import sys
 
@@ -27,7 +21,7 @@ sys.path.append("../../../occupational_health_system_v2")
 sys.path.append("/mount/src/occupational_health_system_v2") # 用于线上托管
 from utils.data_helper import timeseries_train_test_split
 from utils.plot_helper import plotly_forecast_res, plotly_forecast_trend, plotly_top_bar
-from examples.time_series_predict.disease_time_series_predict import OCCUPATIONAL_DISEASE_TYPE_NAME
+from examples.occhs_time_series_predict.disease_time_series_predict import OCCUPATIONAL_DISEASE_TYPE_NAME
 
 from matplotlib.font_manager import FontProperties
 from matplotlib import rcParams
@@ -52,7 +46,10 @@ def load_data(input_path):
     diagnoise_input_df.sort_values(by="report_issue_date",
                                    ascending=True,
                                    inplace=True)
-    return diagnoise_input_df
+    disease_sum = diagnoise_input_df.groupby(["diagnoise_res"]).sum()
+    disease_sum.drop(["其他疾病或异常"],inplace=True)
+    disease_sum_dict = (disease_sum/disease_sum.sum()).to_dict()["diagnoise_num"]
+    return diagnoise_input_df, disease_sum_dict
 
 
 @st.cache_resource
@@ -64,7 +61,7 @@ def load_model(models_path, disease):
 
 
 def step(input_path, models_path):
-    diagnoise_input_df = load_data(input_path)
+    diagnoise_input_df, disease_sum_dict = load_data(input_path)
 
     # 开始生成steamlit页面展示
     st.markdown("# 基于各类职业病累计确诊情况的时间序列模型")
@@ -78,27 +75,51 @@ def step(input_path, models_path):
     )
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("职业病类别")
+        st.markdown("### 职业病类别")
         st.markdown("""
+                    目前的体检报告信息中给出了体检结论与体检结论详情两部分关键内容，
+                    体检结论中包含职工所暴露的职业健康危害因素及其像对应的体检结果，
+                    具体的体检结果有以下几类：
+                    * 目前未见异常；
+                    * 复查；
+                    * 其他疾病或异常；
+                    * 疑似职业病；
+                    * 职业禁忌症；
+
+                    这里保留体检结论中的“目前未见异常”、“其他疾病或异常”、“疑似职业病”作为体检结果标签，
+                    对于“职业禁忌证”的情况，进一步根据体检结果详情中的描述内容细分为以下13种明细类别：
+
+                    |职业禁忌症类型|职业禁忌症类型|
+                    |:----|:----|
+                    |职业性听力损伤          |职业性眼病|
+                    |职业性皮肤病            |职业性中毒性肾病|
+                    |职业性心血管系统系统疾病 |职业性中毒性肝病|
+                    |职业性呼吸系统疾病       |职业性肿瘤|
+                    |职业性内分泌系统疾病     |职业性放射性疾病|
+                    |职业性泌尿生殖系统疾病    |职业性骨关节疾病|
+                    |职业性神经系统疾病        ||
+
+                    > 目前针对职业禁忌症的归类主要根据文字描述中出现的关键字进行分类，后续可结合专业医师的鉴定进行更加准确的分类。
                     """)
     with col2:
-        st.markdown("各类职业病累计确诊情况")
+        st.markdown("### 各类职业病累计确诊数据示例")
         st.dataframe(diagnoise_input_df)
 
     st.markdown("## 模型内容展示")
     st.markdown("可以观测到，在浙江省2021-2022年度的体检数据中，职业性听力损伤是占比最突出的主要职业病类型，其次为心血管疾病与呼吸系统疾病。")
     
     with st.expander("主要职业病类型累计确诊人数整体比例分布"):
-        disease_sum = diagnoise_input_df.groupby(["diagnoise_res"]).sum()
-        disease_sum.drop(["其他疾病或异常"],inplace=True)
-        disease_sum_dict = (disease_sum/disease_sum.sum()).to_dict()["diagnoise_num"]
         fig_res = plotly_top_bar(data=disease_sum_dict)
         st.plotly_chart(fig_res, use_container_width=True)
 
     disease_list = diagnoise_input_df["diagnoise_res"].drop_duplicates().tolist()
     disease_list.remove("职业性肿瘤")
     disease_list.remove("其他疾病或异常")
-    st.markdown("在具体的累计确诊趋势中，个别类型的职业病由于确诊的记录信息较少，目前还难以构建可靠的趋势预测模型。")
+    st.markdown("""
+                在具体的累计确诊趋势中，个别类型的职业病由于确诊的记录信息较少，目前还难以构建可靠的趋势预测模型。
+                
+                此外还可以看到，对于听力损伤、呼吸系统疾病以及心血管系统疾病几类主要的职业禁忌症类别，几乎每天都有新增确诊的案例，相对其他几类来说确诊形势更加严峻。
+                """)
     genre = st.radio("针对浙江省各类职业病累计确诊情况进行建模分析", disease_list, horizontal=True)
     logger.info(f"{genre} is selected.")
     disease_name = OCCUPATIONAL_DISEASE_TYPE_NAME.get(genre)
@@ -140,10 +161,10 @@ def step(input_path, models_path):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--input_path", type=str, default="../time_series_predict/cache")
-    # parser.add_argument("--models_path", type=str, default="../time_series_predict/models")
-    parser.add_argument("--input_path", type=str, default="/mount/src/occupational_health_system_v2/examples/time_series_predict/cache")
-    parser.add_argument("--models_path", type=str, default="/mount/src/occupational_health_system_v2/examples/time_series_predict/models")
+    # parser.add_argument("--input_path", type=str, default="../occhs_time_series_predict/cache")
+    # parser.add_argument("--models_path", type=str, default="../occhs_time_series_predict/models")
+    parser.add_argument("--input_path", type=str, default="/mount/src/occupational_health_system_v2/examples/occhs_time_series_predict/cache")
+    parser.add_argument("--models_path", type=str, default="/mount/src/occupational_health_system_v2/examples/occhs_time_series_predict/models")
     args = parser.parse_args()
 
     logger.info("Input Parameters informations:")

@@ -208,12 +208,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # parser.add_argument("--input_path",
     #                     type=str,
-    #                     default="../single_label_classification/cache/preprocessed_data_set.csv")
-    # parser.add_argument("--models_path", type=str, default="../single_label_classification/models")
+    #                     default="../occhs_single_label_classification/cache/preprocessed_data_set.csv")
+    # parser.add_argument("--models_path", type=str, default="../occhs_single_label_classification/models")
     parser.add_argument("--input_path",
                         type=str,
-                        default="/mount/src/occupational_health_system_v2/examples/single_label_classification/cache/preprocessed_data_set.csv")
-    parser.add_argument("--models_path", type=str, default="/mount/src/occupational_health_system_v2/examples/single_label_classification/models")
+                        default="/mount/src/occupational_health_system_v2/examples/occhs_single_label_classification/cache/preprocessed_data_set.csv")
+    parser.add_argument("--models_path", type=str, default="/mount/src/occupational_health_system_v2/examples/occhs_single_label_classification/models")
     args = parser.parse_args()
 
     logger.info("Input Parameters informations:")
