@@ -122,14 +122,14 @@ def step(input_path, models_path):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_path",
-                        type=str,
-                        default="/mount/src/occupational_health_system_v2/examples/occhs_association_rule_mining/cache/disease_hazard_group_data.csv")
-    parser.add_argument("--models_path", type=str, default="/mount/src/occupational_health_system_v2/examples/occhs_association_rule_mining/models")
     # parser.add_argument("--input_path",
     #                     type=str,
-    #                     default="../occhs_association_rule_mining/cache/disease_hazard_group_data.csv")
-    # parser.add_argument("--models_path", type=str, default="../occhs_association_rule_mining/models")
+    #                     default="/mount/src/occupational_health_system_v2/examples/occhs_association_rule_mining/cache/disease_hazard_group_data.csv")
+    # parser.add_argument("--models_path", type=str, default="/mount/src/occupational_health_system_v2/examples/occhs_association_rule_mining/models")
+    parser.add_argument("--input_path",
+                        type=str,
+                        default="../occhs_association_rule_mining/cache/disease_hazard_group_data.csv")
+    parser.add_argument("--models_path", type=str, default="../occhs_association_rule_mining/models")
     args = parser.parse_args()
 
     logger.info("Input Parameters informations:")
