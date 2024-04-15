@@ -37,17 +37,20 @@ rcParams.update(config)
 
 
 @st.cache_data
-def load_data(input_path):
+def load_data(input_path, **kwargs):
+    nrows = kwargs.pop("nrows", 200)
+    
     diagnoise_input_df = pd.read_csv(input_path /
                                      "diagnoise_time_series_data.csv",
-                                     header=0)
+                                     header=0,
+                                     nrows=nrows)
     diagnoise_input_df["report_issue_date"] = pd.to_datetime(
         diagnoise_input_df["report_issue_date"])
     diagnoise_input_df.sort_values(by="report_issue_date",
                                    ascending=True,
                                    inplace=True)
     hazard_input_df = pd.read_csv(input_path / "hazard_time_series_data.csv",
-                                  header=0)
+                                  header=0, nrows=nrows)
     hazard_input_df["report_issue_date"] = pd.to_datetime(
         hazard_input_df["report_issue_date"])
     hazard_input_df.sort_values(by="report_issue_date",

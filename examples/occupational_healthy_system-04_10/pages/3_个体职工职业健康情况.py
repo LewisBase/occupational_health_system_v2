@@ -44,8 +44,10 @@ rcParams.update(config)
 
 
 @st.cache_data
-def load_data(input_path):
-    input_df = pd.read_csv(input_path, header=0)
+def load_data(input_path, **kwargs):
+    nrows = kwargs.pop("nrows", 200)
+    
+    input_df = pd.read_csv(input_path, header=0, nrows=nrows)
     labels = input_df["label"]
     features = input_df.drop(["id", "label"], axis=1)
 

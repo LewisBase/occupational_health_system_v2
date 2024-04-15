@@ -41,7 +41,7 @@ from utils.data_helper import get_categorical_indicies
 
 @st.cache_data
 def load_data(input_path, **kwargs):
-    nrows = kwargs.pop("nrow", 1000)
+    nrows = kwargs.pop("nrow", 200)
     
     input_df = pd.read_csv(input_path, header=0, nrows=nrows)
     labels = input_df["labels"]
@@ -160,8 +160,8 @@ if __name__ == "__main__":
     parser.add_argument("--models_path", type=str, default="/mount/src/occupational_health_system_v2/examples/occhs_multi_label_classification/models")
     # parser.add_argument("--input_path",
     #                     type=str,
-    #                     default="./cache/preprocessed_data_set.csv")
-    # parser.add_argument("--models_path", type=str, default="./models")
+    #                     default="../occhs_multi_label_classification/cache/preprocessed_data_set.csv")
+    # parser.add_argument("--models_path", type=str, default="../occhs_multi_label_classification/models")
     args = parser.parse_args()
 
     logger.info("Input Parameters informations:")
