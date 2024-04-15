@@ -76,7 +76,7 @@ def load_model(models_path, city_name):
 
 
 def step(input_path, models_path):
-    diagnoise_input_df, hazard_input_df = load_data(input_path)
+    diagnoise_input_df, hazard_input_df = load_data(input_path, nrows=None)
 
     # 开始生成steamlit页面展示
     st.markdown("# 基于各地区职工职业病检测情况的时间序列模型")

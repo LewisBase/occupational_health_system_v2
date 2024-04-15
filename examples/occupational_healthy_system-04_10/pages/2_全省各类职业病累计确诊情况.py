@@ -64,7 +64,7 @@ def load_model(models_path, disease):
 
 
 def step(input_path, models_path):
-    diagnoise_input_df, disease_sum_dict = load_data(input_path)
+    diagnoise_input_df, disease_sum_dict = load_data(input_path, nrows=None)
 
     # 开始生成steamlit页面展示
     st.markdown("# 基于各类职业病累计确诊情况的时间序列模型")
