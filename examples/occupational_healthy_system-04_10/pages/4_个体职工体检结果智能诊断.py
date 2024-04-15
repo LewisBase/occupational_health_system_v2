@@ -79,7 +79,7 @@ def step(input_path, models_path):
         "Skin_result", "ECG_result", "MPV_result", "PLCR_result", "MCV_result",
         "MCH_result"
     ]
-    input_df, cat_features, val_X, val_y = load_data(input_path)
+    input_df, cat_features, val_X, val_y = load_data(input_path, nrows=1000)
     eval_pool = Pool(val_X, val_y, cat_features=cat_features)
     model, predict_y = load_model_and_predict(models_path, val_X)
 
