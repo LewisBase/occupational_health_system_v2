@@ -15,8 +15,6 @@ import pickle
 from loguru import logger
 from pathlib import Path
 from functional import seq
-from catboost import Pool
-from sklearn.model_selection import train_test_split
 
 from matplotlib.font_manager import FontProperties
 from matplotlib import rcParams
@@ -41,7 +39,7 @@ from utils.data_helper import get_categorical_indicies
 
 @st.cache_data
 def load_data(input_path, **kwargs):
-    nrows = kwargs.pop("nrow", 200)
+    nrows = kwargs.pop("nrows", 200)
     
     input_df = pd.read_csv(input_path, header=0, nrows=nrows)
     labels = input_df["labels"]
@@ -50,18 +48,13 @@ def load_data(input_path, **kwargs):
     cat_features = get_categorical_indicies(features)
     features[cat_features] = features.fillna(value="", inplace=True)
 
-    train_X, val_X, train_y, val_y = train_test_split(features,
-                                                      labels,
-                                                      train_size=0.8,
-                                                      random_state=42)
-    return input_df, cat_features, val_X, val_y
+    return input_df, cat_features, features, labels
 
 
 @st.cache_resource
-def load_model_and_predict(models_path, val_X):
+def load_model(models_path):
     model = pickle.load(open(models_path / "model.pkl", "rb"))
-    predict_y = model.predict(val_X)
-    return model, predict_y
+    return model
 
 
 def step(input_path, models_path):
@@ -79,9 +72,8 @@ def step(input_path, models_path):
         "Skin_result", "ECG_result", "MPV_result", "PLCR_result", "MCV_result",
         "MCH_result"
     ]
-    input_df, cat_features, val_X, val_y = load_data(input_path, nrows=1000)
-    eval_pool = Pool(val_X, val_y, cat_features=cat_features)
-    model, predict_y = load_model_and_predict(models_path, val_X)
+    input_df, cat_features, val_X, val_y = load_data(input_path, nrows=200)
+    model = load_model(models_path)
 
     # 开始生成steamlit页面展示
     st.markdown("# 基于职工体检结果预测可能患有的职业病类型的智能诊断模型")
