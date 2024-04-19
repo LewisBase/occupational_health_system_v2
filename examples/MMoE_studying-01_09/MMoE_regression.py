@@ -30,7 +30,7 @@ from sklearn.metrics import mean_absolute_error
 
 from staff_info import StaffInfo
 from diagnose_info.auditory_diagnose import AuditoryDiagnose
-from model.multi_task.mmoe import MMoE
+from model.multi_task.mmoe import MMoEembedding
 from utils.data_helper import root_mean_squared_error
 from utils.plot_helper import plot_corr_hotmap, plot_feature_importance
 
@@ -394,7 +394,7 @@ if __name__ == "__main__":
 
         # train model
         # mmoe
-        mmoe = MMoE(user_feature_dict,
+        mmoe = MMoEembedding(user_feature_dict,
                     item_feature_dict,
                     emb_dim=64,
                     n_expert=3,

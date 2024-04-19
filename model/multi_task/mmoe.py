@@ -12,7 +12,63 @@ import torch
 import torch.nn as nn
 
 
-class MMoE(nn.Module):
+class MMoELayer(nn.Module):
+    def __init__(self,
+                 input_size: int = 64,
+                 num_experts: int = 3,
+                 num_tasks: int = 3,
+                 expert_hidden_units: int = 32,
+                 gate_hidden_units: int = 32):
+        super(MMoELayer, self).__init__()
+
+        self.num_experts = num_experts
+        self.num_tasks = num_tasks
+
+        self.expert_nets = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(input_size, expert_hidden_units),
+                nn.ReLU(),
+                nn.Linear(expert_hidden_units, expert_hidden_units),
+                nn.ReLU(),
+            ) for _ in range(num_experts)
+        ])
+
+        self.gate_nets = nn.ModuleList([
+            nn.Sequential(nn.Linear(input_size, gate_hidden_units), nn.ReLU(),
+                          nn.Linear(gate_hidden_units, num_experts),
+                          nn.Softmax(dim=1)) for _ in range(num_tasks)
+        ])
+
+        self.task_nets = nn.ModuleList(
+            [nn.Linear(expert_hidden_units, 1) for _ in range(num_tasks)])
+
+    def forward(self, x):
+        expert_outputs = []
+        for expert_net in self.expert_nets:
+            expert_output = expert_net(x)
+            expert_outputs.append(expert_output)
+
+        gate_outputs = []
+        for gate_net in self.gate_nets:
+            gate_output = gate_net(x)
+            gate_outputs.append(gate_output)
+
+        task_outputs = []
+        for i in range(self.num_tasks):
+            expert_gates = torch.stack([gate_outputs[i]], dim=1)
+            # expert_gates = torch.stack(
+            #     [gate_outputs[i] for _ in range(self.num_experts)], dim=2)
+            expert_outputs_tensor = torch.stack(expert_outputs, dim=2)
+            weighted_expert_outputs = expert_gates.expand_as(expert_outputs_tensor) * expert_outputs_tensor
+            # weighted_expert_outputs = expert_gates * expert_outputs_tensor
+            task_output = torch.sum(weighted_expert_outputs, dim=2)
+            task_output = self.task_nets[i](task_output)
+            task_outputs.append(task_output)
+
+        return task_outputs
+
+
+class MMoEembedding(nn.Module):
     """MMoE for CTCVR problem
 
     Args:
@@ -44,7 +100,7 @@ class MMoE(nn.Module):
             expert_activation (_type_, optional): _description_. Defaults to None.
             num_task (int, optional): _description_. Defaults to 2.
         """
-        super(MMoE, self).__init__()
+        super(MMoEembedding, self).__init__()
         # check input parameters
         if user_feature_dict is None or item_feature_dict is None:
             raise Exception(
@@ -193,6 +249,9 @@ if __name__ == "__main__":
         "item_cate": (6, 2),
         "item_num": (1, 5)
     }
-    mmoe = MMoE(user_cate_dict, item_cate_dict)
+    mmoe = MMoEembedding(user_cate_dict, item_cate_dict)
     outs = mmoe(a)
     print(outs)
+    data = torch.rand(size=(1, 64))
+    model = MMoELayer()
+    model(data)
