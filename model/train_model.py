@@ -19,16 +19,17 @@ def printlog(info):
 
 
 class StepRunner(BaseModel):
-    net: Any 
+    model: Any 
     loss_fn: Any
     metrics_dict: Dict
     stage: str = "train"
-    optimizer: Any
+    optimizer: Any = None
 
     def step(self, features, labels):
+        label = labels
         # loss
-        preds = self.net(features).squeeze(-1)
-        loss = self.loss_fn(preds, labels)
+        preds = self.model(features).squeeze(-1)
+        loss = self.loss_fn(preds, label)
 
         # backward()
         if self.optimizer is not None and self.stage == "train":
@@ -37,18 +38,17 @@ class StepRunner(BaseModel):
             self.optimizer.zero_grad()
 
         # metrics
-        # torchmetrics的Accuracy中label需使用整型
-        step_metrics = {self.stage+"_"+name: metric_fn(preds, labels.int()).item()
+        step_metrics = {self.stage+"_"+name: metric_fn(preds, label.int()).item()
                         for name, metric_fn in self.metrics_dict.items()}
         return loss.item(), step_metrics
 
     def train_step(self, features, labels):
-        self.net.train()  # 训练模式，dropout层发生作用
+        self.model.train()  # 训练模式，dropout层发生作用
         return self.step(features, labels)
 
     @torch.no_grad()
     def eval_step(self, features, labels):
-        self.net.eval()  # 预测模式，dropout层不发生作用
+        self.model.eval()  # 预测模式，dropout层不发生作用
         return self.step(features, labels)
 
     def __call__(self, features, labels):
@@ -59,12 +59,11 @@ class StepRunner(BaseModel):
 
 
 class EpochRunner():
-    # steprunner: BaseModel
-    def __init__(self, steprunner):
+    def __init__(self, steprunner: StepRunner):
         self.steprunner = steprunner
         self.stage = self.steprunner.stage
 
-    def __call__(self, dataloader):
+    def __call__(self, dataloader, device):
         total_loss, step = 0, 0
         loop = tqdm(enumerate(dataloader), total=len(dataloader))
         for i, batch in loop:
@@ -87,50 +86,67 @@ class EpochRunner():
         return epoch_log
 
 
-def train_model(net, optimizer, loss_fn, metrics_dict,
-                train_data, val_data=None,
-                epochs=10, ckpt_path="checkpoint.pt",
-                patience=5, monitor="val_loss", mode="min"):
+def train_model(model,
+                steprunner,
+                epochrunner,
+                optimizer,
+                loss_fn,
+                metrics_dict,
+                train_data,
+                val_data=None,
+                epochs=10,
+                ckpt_path="checkpoint.pt",
+                early_stop=5,
+                monitor="val_loss",
+                mode="min"):
     history = {}
+    # use GPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
 
-    for epoch in range(1, epochs+1):
-        printlog("Epoch {0} / {1}".format(str(epoch), str(epochs)))
+    for epoch in range(1, epochs + 1):
+        printlog(f"Epoch {epoch} / {epochs}")
 
         # 1, train -------------------------------------------------
-        train_step_runner = StepRunner(net=net, stage="train",
-                                       loss_fn=loss_fn, metrics_dict=deepcopy(
-                                           metrics_dict),
+        train_step_runner = steprunner(model=model,
+                                       stage="train",
+                                       loss_fn=loss_fn,
+                                       metrics_dict=deepcopy(metrics_dict),
                                        optimizer=optimizer)
-        train_epoch_runner = EpochRunner(train_step_runner)
-        train_metrics = train_epoch_runner(train_data)
+        train_epoch_runner = epochrunner(train_step_runner)
+        train_metrics = train_epoch_runner(train_data, device=device)
 
         for name, metric in train_metrics.items():
             history[name] = history.get(name, []) + [metric]
 
         # 2，validate -------------------------------------------------
         if val_data:
-            val_step_runner = StepRunner(net=net, stage="val",
-                                         loss_fn=loss_fn, metrics_dict=deepcopy(metrics_dict))
-            val_epoch_runner = EpochRunner(val_step_runner)
+            val_step_runner = steprunner(model=model,
+                                         stage="val",
+                                         loss_fn=loss_fn,
+                                         metrics_dict=deepcopy(metrics_dict))
+            val_epoch_runner = epochrunner(val_step_runner)
             with torch.no_grad():
-                val_metrics = val_epoch_runner(val_data)
+                val_metrics = val_epoch_runner(val_data, device=device)
             val_metrics["epoch"] = epoch
             for name, metric in val_metrics.items():
                 history[name] = history.get(name, []) + [metric]
 
         # 3，early-stopping -------------------------------------------------
         arr_scores = history[monitor]
-        best_score_idx = np.argmax(
-            arr_scores) if mode == "max" else np.argmin(arr_scores)
-        if best_score_idx == len(arr_scores)-1:
-            torch.save(net.state_dict(), ckpt_path)
-            print("<<<<<< reach best {0} : {1} >>>>>>".format(monitor,
-                                                              arr_scores[best_score_idx]), file=sys.stderr)
-        if len(arr_scores)-best_score_idx > patience:
-            print("<<<<<< {} without improvement in {} epoch, early stopping >>>>>>".format(
-                monitor, patience), file=sys.stderr)
+        best_score_idx = np.argmax(arr_scores) if mode == "max" else np.argmin(
+            arr_scores)
+        if best_score_idx == len(arr_scores) - 1:
+            torch.save(model.state_dict(), ckpt_path)
+            logger.info(
+                f"<<<<<< reach best {monitor} : {arr_scores[best_score_idx]} >>>>>>"
+            )
+        if len(arr_scores) - best_score_idx > early_stop:
+            logger.info(
+                f"<<<<<< {monitor} without improvement in {early_stop} epoch, early stopping >>>>>>"
+            )
             break
-        net.load_state_dict(torch.load(ckpt_path))
+        model.load_state_dict(torch.load(ckpt_path))
 
     return pd.DataFrame(history)
 
@@ -198,16 +214,18 @@ if __name__ == "__main__":
     net = create_net()
     loss_fn = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(net.parameters(), lr=0.01)
-    metrics_dict = {"acc": Accuracy()}
+    metrics_dict = {"acc": Accuracy(task="BINARY")}
 
     dfhistory = train_model(net,
+                            StepRunner,
+                            EpochRunner,
                             optimizer,
                             loss_fn,
                             metrics_dict,
                             train_data=dl_train,
                             val_data=dl_val,
                             epochs=10,
-                            patience=5,
+                            early_stop=5,
                             monitor="val_acc",
                             mode="max")
     print(1)

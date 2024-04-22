@@ -15,6 +15,7 @@
 *.log
 *.pkl
 *.pyc
+*.pt
 *.htm
 
 .vscode/
