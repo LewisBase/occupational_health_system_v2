@@ -26,6 +26,7 @@ from sklearn.model_selection import train_test_split
 
 from staff_info import StaffInfo
 from diagnose_info.auditory_diagnose import AuditoryDiagnose
+from utils.data_helper import root_mean_squared_error
 
 
 def _extract_data_for_task(data: StaffInfo, **additional_set):  # type: ignore
@@ -43,7 +44,7 @@ def _extract_data_for_task(data: StaffInfo, **additional_set):  # type: ignore
     res["NIPTS"] = data.staff_health_info.auditory_diagnose.get("NIPTS")
     res["NIPTS_pred_2013"] = data.NIPTS_predict_iso1999_2013(percentrage=50,
                                                              mean_key=mean_key)
-    # res["NIPTS_pred_2023"] = data.NIPTS_predict_iso1999_2023(percentrage=50, mean_key=mean_key)
+    res["NIPTS_pred_2023"] = data.NIPTS_predict_iso1999_2023(percentrage=50, mean_key=mean_key)
     # for freq in [1000, 2000, 3000, 4000, 6000]:
     for freq in [3000, 4000, 6000]:
         res["NIPTS_" + str(freq)] = AuditoryDiagnose.NIPTS(
@@ -52,6 +53,8 @@ def _extract_data_for_task(data: StaffInfo, **additional_set):  # type: ignore
             age=data.staff_basic_info.age,
             mean_key=[freq],
             NIPTS_diagnose_strategy=NIPTS_diagnose_strategy)
+        res["NIPTS_pred_2013_" + str(freq)] = data.NIPTS_predict_iso1999_2013(percentrage=50,mean_key=[freq])
+        res["NIPTS_pred_2023_" + str(freq)] = data.NIPTS_predict_iso1999_2023(percentrage=50,mean_key=[freq])
     # feature information
     ## L
     res["SPL_dB"] = data.staff_occupational_hazard_info.noise_hazard_info.SPL_dB
@@ -167,6 +170,19 @@ if __name__ == "__main__":
     train_data, val_data = train_test_split(extract_df,
                                             test_size=0.3,
                                             random_state=42)
+
+    # RMSE test
+    ## ISO 1999:2013
+    ISO_2013_RMSE = root_mean_squared_error(val_data["NIPTS"], val_data["NIPTS_pred_2013"])
+    ISO_2013_3000_RMSE = root_mean_squared_error(val_data["NIPTS_3000"], val_data["NIPTS_pred_2013_3000"])
+    ISO_2013_4000_RMSE = root_mean_squared_error(val_data["NIPTS_4000"], val_data["NIPTS_pred_2013_4000"])
+    ISO_2013_6000_RMSE = root_mean_squared_error(val_data["NIPTS_6000"], val_data["NIPTS_pred_2013_6000"])
+    ## ISO 1999:2023
+    ISO_2023_RMSE = root_mean_squared_error(val_data["NIPTS"], val_data["NIPTS_pred_2023"])
+    ISO_2023_3000_RMSE = root_mean_squared_error(val_data["NIPTS_3000"], val_data["NIPTS_pred_2023_3000"])
+    ISO_2023_4000_RMSE = root_mean_squared_error(val_data["NIPTS_4000"], val_data["NIPTS_pred_2023_4000"])
+    ISO_2023_6000_RMSE = root_mean_squared_error(val_data["NIPTS_6000"], val_data["NIPTS_pred_2023_6000"])
+                                            
     feature_columns = seq(
         extract_df.columns).filter(lambda x: not x.startswith("NIPTS"))
     train_dataset = TrainDataSet((

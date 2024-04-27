@@ -154,20 +154,36 @@ if __name__ == "__main__":
         cnn_mmoe.load_state_dict(
             torch.load(model_path / "CNNMMoE_checkpoint.pt"))
         standard_res = []
+        standard_3000_res = []
+        standard_4000_res = []
+        standard_6000_res = []
         ISO_predict_res = []
         CNNMMoE_predict_res = []
+        CNNMMoE_predict_3000_res = []
+        CNNMMoE_predict_4000_res = []
+        CNNMMoE_predict_6000_res = []
         for batch in val_dataloader:
-            x, y, _, _, _, ISO_predict = batch
+            x, y, suby_1, suby_2, suby_3, ISO_predict = batch
             standard_res += list(y.squeeze().cpu().numpy())
+            standard_3000_res += list(suby_1.squeeze().cpu().numpy())
+            standard_4000_res += list(suby_2.squeeze().cpu().numpy())
+            standard_6000_res += list(suby_3.squeeze().cpu().numpy())
             CNNMMoE_predict_res += list(
                 torch.mean(torch.stack(cnn_mmoe(x.unsqueeze(1))),
                            dim=0).squeeze().cpu().detach().numpy())
+            CNNMMoE_predict_3000_res += list(cnn_mmoe(x.unsqueeze(1))[0].squeeze().cpu().detach().numpy())
+            CNNMMoE_predict_4000_res += list(cnn_mmoe(x.unsqueeze(1))[1].squeeze().cpu().detach().numpy())
+            CNNMMoE_predict_6000_res += list(cnn_mmoe(x.unsqueeze(1))[2].squeeze().cpu().detach().numpy())
             ISO_predict_res += list(ISO_predict.squeeze().cpu().numpy())
-        CNNMMoE_RMSE = root_mean_squared_error(standard_res,
-                                               CNNMMoE_predict_res)
+        CNNMMoE_RMSE = root_mean_squared_error(standard_res, CNNMMoE_predict_res)
+        CNNMMoE_3000_RMSE = root_mean_squared_error(standard_3000_res, CNNMMoE_predict_3000_res)
+        CNNMMoE_4000_RMSE = root_mean_squared_error(standard_4000_res, CNNMMoE_predict_4000_res)
+        CNNMMoE_6000_RMSE = root_mean_squared_error(standard_6000_res, CNNMMoE_predict_6000_res)
         ISO_RMSE = root_mean_squared_error(standard_res, ISO_predict_res)
-        logger.info(
-            f"CNN+MMoE predict NIPTS_346's RMSE is {round(CNNMMoE_RMSE, 2)}")
+        logger.info(f"CNN+MMoE predict NIPTS_346's RMSE is {round(CNNMMoE_RMSE, 2)}")
         logger.info(f"ISO predict NIPTS_346's RMSE is {round(ISO_RMSE, 2)}")
+        logger.info(f"CNN+MMoE predict NIPTS_3000's RMSE is {round(CNNMMoE_3000_RMSE, 2)}")
+        logger.info(f"CNN+MMoE predict NIPTS_4000's RMSE is {round(CNNMMoE_4000_RMSE, 2)}")
+        logger.info(f"CNN+MMoE predict NIPTS_6000's RMSE is {round(CNNMMoE_6000_RMSE, 2)}")
 
     print(1)

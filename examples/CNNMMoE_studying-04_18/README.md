@@ -21,3 +21,11 @@
 * ISO1999, RMSE=15.37
 * CNN, RMSE=13.52
 * CNN+MMoE, RMSE=13.52
+
+### 2024.04.24
+
+加入与Lempert模型的对比，重新划分训练测试集并训练。结果如下：
+
+* ISO1999, RMSE=13.79
+* Lempert, RMSE=13.18
+* CNN+MMoE, RMSE=12.42
