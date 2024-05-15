@@ -15,3 +15,4 @@
 * ./cache/Chinese_extract_experiment_classifier_df.csv: 最终结果中提取的中国工人暴露分类数据（以后其他分类过程中也应使用同一份文件）；
 * ./cache/Chinese_extract_control_classifier_df.csv: 提取的中国工人对照组（含70dB以下暴露数据）分类数据；
 * ./models/*: 目前训练好的有效模型；
+* ./useless/*: 之前实验过程中进行的尝试，现已没有多大作用；

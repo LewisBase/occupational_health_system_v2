@@ -91,8 +91,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_path", type=str, default="./results")
     parser.add_argument("--model_path", type=str, default="./models")
-    # parser.add_argument("--task", type=str, default="train")
-    parser.add_argument("--task", type=str, default="test")
+    parser.add_argument("--task", type=str, default="train")
+    # parser.add_argument("--task", type=str, default="test")
     args = parser.parse_args()
 
     logger.info("Input Parameters informations:")
