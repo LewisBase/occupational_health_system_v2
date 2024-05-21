@@ -11,6 +11,18 @@ from loguru import logger
 from functional import seq
 from prophet.plot import seasonality_plot_df
 
+from matplotlib.font_manager import FontProperties
+from matplotlib import rcParams
+
+config = {
+    "font.family": "serif",
+    "font.size": 12,
+    "mathtext.fontset": "stix",  # matplotlib渲染数学字体时使用的字体，和Times New Roman差别不大
+    "font.serif": ["STZhongsong"],  # 华文中宋
+    "axes.unicode_minus": False  # 处理负号，即-号
+}
+rcParams.update(config)
+
 
 # 随机抽取样本并绘制指定列的hist直方分布图
 def plot_distribution_hist(df: pd.DataFrame,
@@ -285,16 +297,20 @@ def plot_corr_hotmap(df: pd.DataFrame,
     corr_matrix = df.corr()
     fig, ax = plt.subplots()
     sns.heatmap(corr_matrix,
-                      annot=True,
-                      vmax=1,
-                      square=True,
-                      cmap="Reds",
-                      fmt=".1f",
-                      ax=ax)
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-         rotation_mode="anchor")
-    plt.setp(ax.get_yticklabels(), rotation=45, ha="right",
-         rotation_mode="anchor")
+                annot=True,
+                vmax=1,
+                square=True,
+                cmap="Reds",
+                fmt=".1f",
+                ax=ax)
+    plt.setp(ax.get_xticklabels(),
+             rotation=45,
+             ha="right",
+             rotation_mode="anchor")
+    plt.setp(ax.get_yticklabels(),
+             rotation=45,
+             ha="right",
+             rotation_mode="anchor")
     fig.tight_layout()
     plt.savefig(picture_path)
     if is_show:
@@ -327,15 +343,15 @@ def plot_feature_importance(feature_importance: dict,
 
 # 绘制Prophet预测结果
 def plotly_forecast_res(model,
-                      fcst,
-                      test_X,
-                      test_y,
-                      title,
-                      xlabel='date',
-                      ylabel='y',
-                      **kwargs):
-    legend_xy = kwargs.pop("legend_xy", (0.9, 1.10))    
-    
+                        fcst,
+                        test_X,
+                        test_y,
+                        title,
+                        xlabel='date',
+                        ylabel='y',
+                        **kwargs):
+    legend_xy = kwargs.pop("legend_xy", (0.9, 1.10))
+
     fcst_t = fcst['ds'].dt.to_pydatetime()
 
     fig = go.Figure()
@@ -386,19 +402,16 @@ def plotly_forecast_res(model,
                                 color="RebeccaPurple"))
     return fig
 
-    
+
 # 绘制Prophet趋势分析结果
-def plotly_forecast_trend(model,
-                        fcst,
-                        ylabel,
-                        **kwargs):
+def plotly_forecast_trend(model, fcst, ylabel, **kwargs):
     if ylabel == "trend":
         plot_x = fcst["ds"].dt.to_pydatetime()
         plot_y = fcst
         xlabel = "Date"
     if ylabel == "weekly":
         days = (pd.date_range(start='2017-01-01', periods=7) +
-            pd.Timedelta(days=0))
+                pd.Timedelta(days=0))
         df_w = seasonality_plot_df(model, days)
         days = days.day_name()
         plot_x = days
@@ -410,10 +423,10 @@ def plotly_forecast_trend(model,
         end = start + pd.Timedelta(days=period)
         days = pd.to_datetime(np.linspace(start.value, end.value, int(period)))
         df_y = seasonality_plot_df(model, days)
-        plot_x = np.arange(1, len(days)+1) 
+        plot_x = np.arange(1, len(days) + 1)
         plot_y = model.predict_seasonal_components(df_y)
         xlabel = "Days"
-    
+
     # start plot
     fig = go.Figure()
     fig.add_trace(
@@ -423,18 +436,16 @@ def plotly_forecast_trend(model,
                    line=dict(color="blue")))
     fig.add_trace(
         go.Scatter(x=plot_x,
-                   y=plot_y[ylabel+"_upper"],
+                   y=plot_y[ylabel + "_upper"],
                    mode="lines",
-                   line=dict(width=0.5, color="rgb(111, 231, 219)"))
-    )
+                   line=dict(width=0.5, color="rgb(111, 231, 219)")))
     fig.add_trace(
         go.Scatter(x=plot_x,
-                   y=plot_y[ylabel+"_lower"],
+                   y=plot_y[ylabel + "_lower"],
                    mode="lines",
                    fill="tonexty",
-                   line=dict(width=0.5, color="rgb(111, 231, 219)"))
-    )
-    
+                   line=dict(width=0.5, color="rgb(111, 231, 219)")))
+
     fig.update_layout(xaxis_title=xlabel,
                       yaxis_title=ylabel,
                       width=800,
@@ -445,18 +456,76 @@ def plotly_forecast_trend(model,
                                 color="RebeccaPurple"))
     return fig
 
-    
+
 #绘制Plotly饼状图
-def plotly_top_bar(data,
-                    **kwargs):
+def plotly_top_bar(data, **kwargs):
     labels = seq(data.items()).map(lambda x: x[0]).list()
-    values = seq(data.items()).map(lambda x: round(100*x[1],2)).list()
+    values = seq(data.items()).map(lambda x: round(100 * x[1], 2)).list()
     # 用其他填补其于部分
     if np.abs(np.sum(values) - 100) > 1:
         labels.append("其他")
-        values.append(100-np.sum(values))
+        values.append(100 - np.sum(values))
     fig = go.Figure()
-    fig.add_trace(
-        go.Pie(labels=labels, values=values)
-    )
+    fig.add_trace(go.Pie(labels=labels, values=values))
     return fig
+
+
+# 绘制频数统计条形图
+def plot_frequency_bar(freqs: list, start_point: float, interval: float,
+                       xticks: list, xticklabels: list,
+                       output_path: Union[str, Path], picture_name: str,
+                       picture_format: str, **kwargs):
+    fig_size = kwargs.pop("fig_size", (5, 5))
+    bar_width = kwargs.pop("bar_width", 3)
+    alpha = kwargs.pop("alpha", 0.4)
+    color_type = kwargs.pop("color_type", {})
+    label_type = kwargs.pop("label_type", "edge")
+    show_label = kwargs.pop("show_label", False)
+    userdefine_label = kwargs.pop("userdefine_label", False)
+    annotations = kwargs.pop("annotations", {"A": (-0.1, 1.05)})
+    xlabel_name = kwargs.pop("xlabel_name", "Frequency (%)")
+    ylabel_name = kwargs.pop("ylabel_name", "Frequency (%)")
+    dpi = kwargs.pop("dpi", 330)
+    is_show = kwargs.pop("is_show", False)
+
+    fig, ax = plt.subplots(1, figsize=fig_size, dpi=dpi)
+    multiplier = 0
+    for label, freq in freqs.items():
+        offset = bar_width * multiplier
+        bars = ax.bar(
+            x=offset + start_point +
+            interval * np.arange(len(freq)),  # 72.5, 5
+            height=seq(freq.values()).map(lambda x: round(x, 1)).list(),
+            color=color_type.get(label, {}).get("color"),
+            edgecolor="black",
+            hatch=color_type.get(label, {}).get("hatch"),
+            width=bar_width,
+            alpha=alpha,
+            label=label)
+        if label_type:
+            ax.bar_label(bars, label_type=label_type, padding=2)
+        multiplier += 1
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels)
+    ax.set_ylabel(ylabel_name)
+    ax.set_xlabel(f"{xlabel_name}")  # $L_{Aeq}$ (dBA)
+    if show_label:
+        ax.legend(loc="best", fontsize="small")
+    if userdefine_label:
+        ax.legend(handles=userdefine_label.values(),
+                  labels=userdefine_label.keys(),
+                  loc="best",
+                  fontsize="small")
+    picture_path = Path(output_path) / f"{picture_name}.{picture_format}"
+    if annotations:
+        for label, (x, y) in annotations.items():
+            ax.annotate(label,
+                        xy=(1, 0),
+                        xycoords='axes fraction',
+                        xytext=(x, y),
+                        textcoords='axes fraction',
+                        fontproperties=FontProperties(size=20, weight='bold'))
+    plt.savefig(picture_path, format=picture_format, dpi=dpi)
+    if is_show:
+        plt.show()
+    plt.close(fig=fig)
