@@ -8,18 +8,15 @@
         针对收集的国内工人工厂噪声暴露的数据进行二分类的逻辑回归尝试
 """
 
-import re
-import ast
 import pickle
 import pandas as pd
 import numpy as np
-import statsmodels.api as sm
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from pathlib import Path
 from functional import seq
 from loguru import logger
 from joblib import Parallel, delayed
-from sklearn.preprocessing import MinMaxScaler
 from scipy.optimize import minimize
 
 from staff_info import StaffInfo
@@ -333,6 +330,94 @@ def userdefine_logistic_regression_plot(best_params_estimated,
     return dict(zip(LAeq, pred_y))
 
 
+def logistic_vector_func(params, age_grid, LAeq_grid, duration):
+    alpha, beta1, beta21, beta22, beta23, phi = params
+    if duration[0] == 1:
+        beta2_use = beta21
+    if duration[1] == 1:
+        beta2_use = beta22
+    if duration[2] == 1:
+        beta2_use = beta23
+    F = alpha + beta1 * age_grid + beta2_use * np.power(LAeq_grid, phi)
+    return F
+
+
+def userdefine_logistic_vector_plot(best_params_estimated, best_L_control,
+                                    max_LAeq, picture_name, pictures_path):
+    picture_path = Path(pictures_path) / Path(picture_name)
+    ages = np.linspace(15, 61, 100)
+    LAeqs = np.linspace(70, 100, 100)
+    LAeqs = (LAeqs - best_L_control) / (max_LAeq - best_L_control)
+    age_grid, LAeq_grid = np.meshgrid(ages, LAeqs)
+    fig = go.Figure()
+    durations = {
+        "Duration = 1~4": [1, 0, 0],
+        "Duration = 5~10": [0, 1, 0],
+        "Duration > 10": [0, 0, 1],
+    }
+    for duration_name, duration in durations.items():
+        vector_z = logistic_vector_func(params=best_params_estimated,
+                                        age_grid=age_grid,
+                                        LAeq_grid=LAeq_grid,
+                                        duration=duration)
+        fig.add_trace(
+            go.Surface(x=ages,
+                       y=LAeqs,
+                       z=vector_z,
+                       text=duration_name,
+                       hoverinfo="text"))
+        fig.update_layout(scene=dict(xaxis=dict(title="Age (year)"),
+                                     yaxis=dict(title="$L_{Aeq}$ (dBA)"),
+                                     zaxis=dict(
+                                         title="explanatory variables value")))
+        fig.write_html(picture_path)
+
+
+def userdefine_logistic_vector_compare_plot(best_params_estimated_1,
+                                            best_L_control_1,
+                                            max_LAeq_1, 
+                                            best_params_estimated_2,
+                                            best_L_control_2,
+                                            max_LAeq_2,
+                                            duration,
+                                            picture_name, 
+                                            pictures_path):
+    picture_path = Path(pictures_path) / Path(picture_name)
+    ages = np.linspace(15, 61, 100)
+    LAeqs = np.linspace(70, 100, 100)
+    LAeqs_1 = (LAeqs - best_L_control_1) / (max_LAeq_1 - best_L_control_1)
+    LAeqs_2 = (LAeqs - best_L_control_2) / (max_LAeq_2 - best_L_control_2)
+    age_grid, LAeq_1_grid = np.meshgrid(ages, LAeqs_1)
+    age_grid, LAeq_2_grid = np.meshgrid(ages, LAeqs_2)
+
+    vector_z_1 = logistic_vector_func(params=best_params_estimated_1,
+                                      age_grid=age_grid,
+                                      LAeq_grid=LAeq_1_grid,
+                                      duration=duration)
+    vector_z_2 = logistic_vector_func(params=best_params_estimated_2,
+                                      age_grid=age_grid,
+                                      LAeq_grid=LAeq_2_grid,
+                                      duration=duration)
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Surface(x=ages,
+                   y=LAeqs,
+                   z=vector_z_1,
+                   text="NIHL1234",
+                   hoverinfo="text"))
+    fig.add_trace(
+        go.Surface(x=ages,
+                   y=LAeqs,
+                   z=vector_z_2,
+                   text="NIHL346",
+                   hoverinfo="text"))
+    fig.update_layout(scene=dict(xaxis=dict(title="Age (year)"),
+                                 yaxis=dict(title=r"$L_{Aeq}$ (dBA)"),
+                                 zaxis=dict(
+                                     title="explanatory variables value")))
+    fig.write_html(picture_path)
+
 if __name__ == "__main__":
     from datetime import datetime
     logger.add(
@@ -353,6 +438,7 @@ if __name__ == "__main__":
     parser.add_argument("--task", type=str, default="analysis")
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--models_path", type=str, default="./models")
+    parser.add_argument("--pictures_path", type=str, default="./pictures")
     parser.add_argument("--additional_set",
                         type=dict,
                         default={
@@ -458,11 +544,12 @@ if __name__ == "__main__":
     input_path = Path(args.input_path)
     output_path = Path(args.output_path)
     models_path = Path(args.models_path)
+    pictures_path = Path(args.pictures_path)
     additional_set = args.additional_set
     annotated_bad_case = args.annotated_bad_case
     task = args.task
     n_jobs = args.n_jobs
-    for out_path in (output_path, models_path):
+    for out_path in (output_path, models_path, pictures_path):
         if not out_path.exists():
             out_path.mkdir(parents=True)
 
@@ -535,6 +622,18 @@ if __name__ == "__main__":
         #     L_control_range=np.arange(60, 80),
         #     phi_range=[3],
         #     minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9]))
+
+        # single test
+        # userdefine_logistic_regression_task(
+        #     fit_df=fit_df,
+        #     models_path=models_path,
+        #     model_name="Chinese_experiment_group_udlr_model-phi_2.pkl",
+        #     y_col_name="NIHL346_Y",
+        #     params_init=[-4.18, 0.07, 1.32, 2.13, 8.65],
+        #     L_control_range=np.arange(55, 70),
+        #     phi_range=[2],
+        #     minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9])
+        # )
         best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
             open(
                 models_path /
@@ -551,15 +650,66 @@ if __name__ == "__main__":
                 Path("NIHL1234_Y-Chinese_control_group_udlr_model_1.pkl"),
                 "rb"))
 
-        num_res = userdefine_logistic_regression_plot(
-            best_params_estimated=best_params_estimated,
-            best_L_control=best_L_control,
-            max_LAeq=max_LAeq,
-            age=65,
-            LAeq=np.arange(50, 130),
-            duration=np.array([0, 1, 0]),
-            point_type="2nd",
-            control_params_estimated=control_params_estimated_1)
+        # num_res = userdefine_logistic_regression_plot(
+        #     best_params_estimated=best_params_estimated,
+        #     best_L_control=best_L_control,
+        #     max_LAeq=max_LAeq,
+        #     age=65,
+        #     LAeq=np.arange(50, 130),
+        #     duration=np.array([0, 1, 0]),
+        #     point_type="2nd",
+        #     control_params_estimated=control_params_estimated_1)
+
+
+        best_params_estimated_1, best_L_control_1, max_LAeq_1, best_log_likelihood_value_1 = pickle.load(
+            open(
+                models_path /
+                Path("NIHL1234_Y-Chinese_experiment_group_udlr_model.pkl"),
+                "rb"))
+        best_params_estimated_2, best_L_control_2, max_LAeq_2, best_log_likelihood_value_2 = pickle.load(
+            open(
+                models_path /
+                Path("NIHL346_Y-Chinese_experiment_group_udlr_model.pkl"),
+                "rb"))
+        userdefine_logistic_vector_compare_plot(
+            best_params_estimated_1=best_params_estimated_1,
+            best_L_control_1=best_L_control_1,
+            max_LAeq_1=max_LAeq_1,
+            best_params_estimated_2=best_params_estimated_2,
+            best_L_control_2=best_L_control_2,
+            max_LAeq_2=max_LAeq_2,
+            duration=[1, 0, 0],
+            picture_name="NIHL1234_vs_346_Y-duration_0-logistic_vector-plot.html",
+            pictures_path=pictures_path
+        )
+        userdefine_logistic_vector_compare_plot(
+            best_params_estimated_1=best_params_estimated_1,
+            best_L_control_1=best_L_control_1,
+            max_LAeq_1=max_LAeq_1,
+            best_params_estimated_2=best_params_estimated_2,
+            best_L_control_2=best_L_control_2,
+            max_LAeq_2=max_LAeq_2,
+            duration=[0, 1, 0],
+            picture_name="NIHL1234_vs_346_Y-duration_1-logistic_vector-plot.html",
+            pictures_path=pictures_path
+        )
+        userdefine_logistic_vector_compare_plot(
+            best_params_estimated_1=best_params_estimated_1,
+            best_L_control_1=best_L_control_1,
+            max_LAeq_1=max_LAeq_1,
+            best_params_estimated_2=best_params_estimated_2,
+            best_L_control_2=best_L_control_2,
+            max_LAeq_2=max_LAeq_2,
+            duration=[0, 0, 1],
+            picture_name="NIHL1234_vs_346_Y-duration_2-logistic_vector-plot.html",
+            pictures_path=pictures_path
+        )
+        # userdefine_logistic_vector_plot(
+        #     best_params_estimated=best_params_estimated,
+        #     best_L_control=best_L_control,
+        #     max_LAeq=max_LAeq,
+        #     picture_name="NIHL1234_Y-logistic_vector-plot.html",
+        #     pictures_path=pictures_path)
 
         ## NIHL346_Y
         fit_df = extract_df.query(
@@ -678,18 +828,18 @@ if __name__ == "__main__":
             control_params_estimated=control_params_estimated_1)
 
         ## NIHL1234_Y+KG-1
-        # fit_df = extract_df.query(
-        #     "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean < 8"
-        # )[["age", "LAeq", "duration_box_best", "NIHL1234_Y"]]
-        # userdefine_logistic_regression_task(
-        #     fit_df=fit_df,
-        #     models_path=models_path,
-        #     model_name="KG_1-Chinese_experiment_group_udlr_model.pkl",
-        #     y_col_name="NIHL1234_Y",
-        #     params_init=[-3, 0.07, 2, 4, 8.65],
-        #     L_control_range=np.arange(60, 80),
-        #     phi_range=[3],
-        #     minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9]))
+        fit_df = extract_df.query(
+            "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean < 10"
+        )[["age", "LAeq", "duration_box_best", "NIHL1234_Y"]]
+        userdefine_logistic_regression_task(
+            fit_df=fit_df,
+            models_path=models_path,
+            model_name="KG_1-Chinese_experiment_group_udlr_model.pkl",
+            y_col_name="NIHL1234_Y",
+            params_init=[-3, 0.07, 2, 4, 8.65],
+            L_control_range=np.arange(60, 80),
+            phi_range=[3],
+            minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9]))
         best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
             open(
                 models_path / Path(
@@ -709,25 +859,25 @@ if __name__ == "__main__":
             best_params_estimated=best_params_estimated,
             best_L_control=best_L_control,
             max_LAeq=max_LAeq,
-            age=30,
+            age=65,
             LAeq=np.arange(50, 130),
-            duration=np.array([0, 1, 0]),
+            duration=np.array([0, 0, 1]),
             point_type="2nd",
             control_params_estimated=control_params_estimated_1)
 
         ## NIHL1234_Y+KG-2
-        # fit_df = extract_df.query(
-        #     "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean >= 8"
-        # )[["age", "LAeq", "duration_box_best", "NIHL1234_Y"]]
-        # userdefine_logistic_regression_task(
-        #     fit_df=fit_df,
-        #     models_path=models_path,
-        #     model_name="KG_2-Chinese_experiment_group_udlr_model.pkl",
-        #     y_col_name="NIHL1234_Y",
-        #     params_init=[-3, 0.07, 2, 4, 8.65],
-        #     L_control_range=np.arange(60, 80),
-        #     phi_range=[3],
-        #     minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9]))
+        fit_df = extract_df.query(
+            "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean >= 10"
+        )[["age", "LAeq", "duration_box_best", "NIHL1234_Y"]]
+        userdefine_logistic_regression_task(
+            fit_df=fit_df,
+            models_path=models_path,
+            model_name="KG_2-Chinese_experiment_group_udlr_model.pkl",
+            y_col_name="NIHL1234_Y",
+            params_init=[-3, 0.07, 2, 4, 8.65],
+            L_control_range=np.arange(60, 80),
+            phi_range=[3],
+            minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9]))
         best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
             open(
                 models_path / Path(
@@ -747,9 +897,9 @@ if __name__ == "__main__":
             best_params_estimated=best_params_estimated,
             best_L_control=best_L_control,
             max_LAeq=max_LAeq,
-            age=30,
+            age=65,
             LAeq=np.arange(50, 130),
-            duration=np.array([0, 1, 0]),
+            duration=np.array([0, 0, 1]),
             point_type="2nd",
             control_params_estimated=control_params_estimated_1)
     print(1)

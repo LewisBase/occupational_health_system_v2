@@ -9,6 +9,7 @@
 * extract_all_Chinese_data.py: 从压缩的staff_info对象文件中进行信息提取；
 * Chinese_control_group_logistic_regression_0.py: 中国工人对照组（含70dB以下暴露数据）数据听力损伤概率，自变量仅为age；
 * Chinese_control_group_logistic_regression_1.py: 中国工人对照组（含70dB以下暴露数据）数据听力损伤概率，自变量为age与duration；
+* Chinese_all_data_statistic_plot.py: 对所有中国工人数据（实验组+对照组）进行整体统计与检验并绘图；
 
 * ./cache/extract_Chinese_data.pkl: 加载的所有中国工人暴露数据压缩包；
 * ./cache/extract_Chinese_control_data.pkl: 加载的所有中国对照组数据压缩包；
