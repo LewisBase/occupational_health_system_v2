@@ -45,43 +45,45 @@ def plot_LAeq_statistic_res(experiment_df, pictures_path):
                        xticklabels=LAeq_cut,
                        xlabel_name="$L_{Aeq,8h}$ (dBA)",
                        output_path=pictures_path,
-                       picture_name="Fig1A",
+                       picture_name="Fig2A",
                        picture_format="tiff",
                        annotations={"A": (-0.1, 1.05)})
 
 
 def plot_kurtosis_statistic_res(experiment_df, pictures_path):
     kurtosis_cut = [0, 3, 10, 30, 75, np.inf]
-    experiment_df["kurtosis_arimean_box"] = experiment_df[
-        "kurtosis_arimean"].apply(
-            lambda x: mark_group_name(x, qcut_set=kurtosis_cut, prefix="KA"))
+    # experiment_df["kurtosis_arimean_box"] = experiment_df[
+    #     "kurtosis_arimean"].apply(
+    #         lambda x: mark_group_name(x, qcut_set=kurtosis_cut, prefix="KA"))
     experiment_df["kurtosis_geomean_box"] = experiment_df[
         "kurtosis_geomean"].apply(
             lambda x: mark_group_name(x, qcut_set=kurtosis_cut, prefix="KG"))
-    kurtosis_ari_freq = experiment_df["kurtosis_arimean_box"].value_counts(
-    ) / experiment_df["kurtosis_arimean_box"].value_counts().sum() * 100
-    kurtosis_ari_freq = sort_Series_by_strkey(input_Series=kurtosis_ari_freq,
-                                              str_loc=2)
+    # kurtosis_ari_freq = experiment_df["kurtosis_arimean_box"].value_counts(
+    # ) / experiment_df["kurtosis_arimean_box"].value_counts().sum() * 100
+    # kurtosis_ari_freq = sort_Series_by_strkey(input_Series=kurtosis_ari_freq,
+    #                                           str_loc=2)
     kurtosis_geo_freq = experiment_df["kurtosis_geomean_box"].value_counts(
     ) / experiment_df["kurtosis_geomean_box"].value_counts().sum() * 100
     kurtosis_geo_freq = sort_Series_by_strkey(input_Series=kurtosis_geo_freq,
                                               str_loc=2)
     plot_frequency_bar(
         freqs={
-            "arithmetic mean": kurtosis_ari_freq,
+            # "arithmetic mean": kurtosis_ari_freq,
             "geometric mean": kurtosis_geo_freq
         },
         start_point=0,
         interval=1,
-        xticks=np.arange(len(kurtosis_cut) - 1) + 0.2,
+        xticks=np.arange(len(kurtosis_cut) - 1),
+        # xticks=np.arange(len(kurtosis_cut) - 1) + 0.2,
         xticklabels=["[0,3]", "(3,10]", "(10,30]", "(30,75]", ">75"],
-        xlabel_name="Kurtosis",
+        xlabel_name="Geometric Averaging Kurtosis",
         output_path=pictures_path,
-        picture_name="Fig1B",
+        picture_name="Fig2B",
         picture_format="tiff",
         annotations={"B": (-0.1, 1.05)},
-        show_label=True,
+        # show_label=True,
         bar_width=0.4,
+        fig_size=(5,5)
     )
 
 
@@ -121,9 +123,9 @@ def plot_NIHL_statistic_res(experiment_df, control_df, qcut_set, groupby_key,
                                                str_loc=len(prefix))
 
     plot_frequency_bar(freqs={
-        "experiment group: $\\text{NIHL}_{1-4}$":
+        "experiment group: $\\text{NIHL}_{1234}$":
         exper_NIHL1234_freq,
-        "control group: $\\text{NIHL}_{1-4}$":
+        "control group: $\\text{NIHL}_{1234}$":
         contr_NIHL1234_freq,
         "experiment group: $\\text{NIHL}_{346}$":
         exper_NIHL346_freq,
@@ -143,11 +145,11 @@ def plot_NIHL_statistic_res(experiment_df, control_df, qcut_set, groupby_key,
                        annotations=annotations,
                        bar_width=1.0,
                        color_type={
-                           "experiment group: $\\text{NIHL}_{1-4}$": {
+                           "experiment group: $\\text{NIHL}_{1234}$": {
                                "color": "#1f77b4",
                                "hatch": ""
                            },
-                           "control group: $\\text{NIHL}_{1-4}$": {
+                           "control group: $\\text{NIHL}_{1234}$": {
                                "color": "#1f77b4",
                                "hatch": "///"
                            },
@@ -161,7 +163,7 @@ def plot_NIHL_statistic_res(experiment_df, control_df, qcut_set, groupby_key,
                            },
                        },
                        userdefine_label={
-                           "$\\text{NIHL}_{1-4}$":
+                           "$\\text{NIHL}_{1234}$":
                            plt.Rectangle((0, 0),
                                          1,
                                          1,
@@ -289,7 +291,7 @@ if __name__ == "__main__":
                             prefix="A",
                             start_point=16,
                             xlabel_name="Age (year)",
-                            picture_name="Fig1C",
+                            picture_name="Fig2C",
                             annotations={"C": (-0.1, 1.05)},
                             pictures_path=pictures_path)
     ### Mantel-Haensel Test under age
@@ -307,7 +309,7 @@ if __name__ == "__main__":
                             prefix="D",
                             start_point=1,
                             xlabel_name="Duration (year)",
-                            picture_name="Fig1D",
+                            picture_name="Fig2D",
                             annotations={"D": (-0.1, 1.05)},
                             pictures_path=pictures_path)
     ### Mantel-Haensel Test under duration

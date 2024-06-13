@@ -650,15 +650,15 @@ if __name__ == "__main__":
                 Path("NIHL1234_Y-Chinese_control_group_udlr_model_1.pkl"),
                 "rb"))
 
-        # num_res = userdefine_logistic_regression_plot(
-        #     best_params_estimated=best_params_estimated,
-        #     best_L_control=best_L_control,
-        #     max_LAeq=max_LAeq,
-        #     age=65,
-        #     LAeq=np.arange(50, 130),
-        #     duration=np.array([0, 1, 0]),
-        #     point_type="2nd",
-        #     control_params_estimated=control_params_estimated_1)
+        num_res = userdefine_logistic_regression_plot(
+            best_params_estimated=best_params_estimated,
+            best_L_control=best_L_control,
+            max_LAeq=max_LAeq,
+            age=65,
+            LAeq=np.arange(50, 130),
+            duration=np.array([0, 0, 1]),
+            point_type="2nd",
+            control_params_estimated=control_params_estimated_1)
 
 
         best_params_estimated_1, best_L_control_1, max_LAeq_1, best_log_likelihood_value_1 = pickle.load(

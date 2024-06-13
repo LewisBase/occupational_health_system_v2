@@ -389,18 +389,21 @@ if __name__ == "__main__":
 
         # 使用全部数据
         ## NIHL1234_Y
-        fit_df = extract_df[["age", "NIHL1234_Y"]]
+        # fit_df = extract_df[["age", "NIHL1234_Y"]]
+        fit_df = extract_df[["age", "NIHL346_Y"]]
         userdefine_logistic_regression_task(
             fit_df=fit_df,
             models_path=models_path,
             model_name="Chinese_control_group_udlr_model_0.pkl",
-            y_col_name="NIHL1234_Y",
+            # y_col_name="NIHL1234_Y",
+            y_col_name="NIHL346_Y",
             params_init=[-3, 0.08],
         )
         best_params_estimated, best_log_likelihood_value = pickle.load(
             open(
                 models_path /
-                Path("NIHL1234_Y-Chinese_control_group_udlr_model_0.pkl"),
+                # Path("NIHL1234_Y-Chinese_control_group_udlr_model_0.pkl"),
+                Path("NIHL346_Y-Chinese_control_group_udlr_model_0.pkl"),
                 "rb"))
         userdefine_logistic_regression_plot(
             best_params_estimated=best_params_estimated,
