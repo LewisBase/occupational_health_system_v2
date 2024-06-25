@@ -147,7 +147,7 @@ if __name__ == "__main__":
                                                   picture_format="tiff",
                                                   age=30,
                                                   LAeq=np.arange(60, 120),
-                                                  duration=np.array([0,1,0]),
+                                                  duration=np.array([1,0,0]),
                                                   annotations={"A": (-0.1, 1.05)},
                                                   y_lim=[0,100])
     num_res = userdefine_logistic_regression_plot(best_params_estimateds=[experiment_params_estimated_1234, experiment_params_estimated_346],

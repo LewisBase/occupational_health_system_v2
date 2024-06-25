@@ -87,7 +87,7 @@ def userdefine_logistic_regression_plot(best_params_estimateds: list,
 
         ax.plot(LAeq, (pred_y - control_y)*100, label=label)
         ax.set_title(f"Age = {age}, Duration {duration_desp}")
-        ax.set_ylabel("Excess Risk of $\\text{NIHL}_{1-4}$ (%)")
+        ax.set_ylabel("Excess Risk of $\\text{NIHL}_{1234}$ (%)")
         ax.set_xlabel("$L_{Aeq,8h}$ (dBA)")
     plt.legend(loc="upper left")
     for label, (x, y) in annotations.items():
@@ -143,7 +143,7 @@ if __name__ == "__main__":
                                                   picture_format="tiff",
                                                   age=30,
                                                   LAeq=np.arange(60, 120),
-                                                  duration=np.array([0,1,0]),
+                                                  duration=np.array([1,0,0]),
                                                   annotations={"A": (-0.1, 1.05)},
                                                   y_lim=[0,100])
     num_res = userdefine_logistic_regression_plot(best_params_estimateds=[KG1_params_estimated_1234, KG2_params_estimated_1234],
