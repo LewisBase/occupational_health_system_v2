@@ -39,17 +39,19 @@ def _extract_data_for_task(data: StaffInfo, **additional_set):  # type: ignore
     mean_key = additional_set.pop("mean_key")
     better_ear_strategy = additional_set.pop("better_ear_strategy")
     NIPTS_diagnose_strategy = additional_set.pop("NIPTS_diagnose_strategy")
+    extrapolation = additional_set.get("extrapolation")
+    beta_baseline = additional_set.get("beta_baseline")
 
     res = {}
     res["staff_id"] = data.staff_id
     # worker information
     # res["name"] = data.staff_basic_info.name
-    # res["factory"] = data.staff_id.split("-")[0]
+    res["factory_name"] = data.staff_id.split("-")[0]
     res["sex"] = data.staff_basic_info.sex
     res["age"] = data.staff_basic_info.age
     res["duration"] = data.staff_basic_info.duration
-    # res["work_shop"] = data.staff_basic_info.work_shop
-    # res["work_position"] = data.staff_basic_info.work_position
+    res["work_shop"] = data.staff_basic_info.work_shop
+    res["work_position"] = data.staff_basic_info.work_position
     # res["smoking"] = data.staff_basic_info.smoking
     # res["year_of_smoking"] = data.staff_basic_info.year_of_smoking
     PTA_res = data.staff_health_info.auditory_detection.get("PTA")
@@ -59,25 +61,36 @@ def _extract_data_for_task(data: StaffInfo, **additional_set):  # type: ignore
                 r"-?\d+(\.\d+)?", str(x[1])) else np.nan)).dict())
     # label information
     res["NIPTS"] = data.staff_health_info.auditory_diagnose.get("NIPTS")
-    res["NIPTS_pred_2013"] = data.NIPTS_predict_iso1999_2013(percentrage=50,
-                                                             mean_key=mean_key)
-    res["NIPTS_pred_2023"] = data.NIPTS_predict_iso1999_2023(percentrage=50,
-                                                             mean_key=mean_key)
+    # res["NIPTS_pred_2013"] = data.NIPTS_predict_iso1999_2013(percentrage=50,
+    #                                                          mean_key=mean_key)
+    # res["NIPTS_pred_2023"] = data.NIPTS_predict_iso1999_2023(percentrage=50,
+    #                                                          mean_key=mean_key)
     # feature information
     ## L
     res["LAeq"] = data.staff_occupational_hazard_info.noise_hazard_info.LAeq
     res["SPL_dBA"] = data.staff_occupational_hazard_info.noise_hazard_info.SPL_dBA
-    ## adjust L
-    for method, algorithm_code in product(["total_ari", "total_geo"], ["A+n"]):
-        res[f"L{algorithm_code[0]}eq_adjust_{method}_{algorithm_code}"] = data.staff_occupational_hazard_info.noise_hazard_info.L_adjust[
-            method].get(algorithm_code)
     ## kurtosis
     res["kurtosis_arimean"] = data.staff_occupational_hazard_info.noise_hazard_info.kurtosis_arimean
     res["kurtosis_geomean"] = data.staff_occupational_hazard_info.noise_hazard_info.kurtosis_geomean
     res["kurtosis"] = data.staff_occupational_hazard_info.noise_hazard_info.kurtosis
-    ## recorder message
-    # res["recorder"] = data.staff_occupational_hazard_info.noise_hazard_info.recorder
-    # res["recorder_time"] = data.staff_occupational_hazard_info.noise_hazard_info.recorder_time
+    ## adjust L
+    # for method, algorithm_code in product(
+    #     ["total_ari", "total_geo", "segment_ari"], ["A+n"]):
+    #     res[f"L{algorithm_code[0]}eq_adjust_{method}_{algorithm_code}"] = data.staff_occupational_hazard_info.noise_hazard_info.L_adjust[
+    #         method].get(algorithm_code)
+    ## NIPTS adjust results
+    # res["NIPTS_pred_2013_adjust_ari"] = data.NIPTS_predict_iso1999_2013(
+    #     LAeq=res["LAeq_adjust_total_ari_A+n"])
+    # res["NIPTS_pred_2023_adjust_ari"] = data.NIPTS_predict_iso1999_2023(
+    #     LAeq=res["LAeq_adjust_total_ari_A+n"], extrapolation=extrapolation)
+    # res["NIPTS_pred_2013_adjust_geo"] = data.NIPTS_predict_iso1999_2013(
+    #     LAeq=res["LAeq_adjust_total_geo_A+n"])
+    # res["NIPTS_pred_2023_adjust_geo"] = data.NIPTS_predict_iso1999_2023(
+    #     LAeq=res["LAeq_adjust_total_geo_A+n"], extrapolation=extrapolation)
+    # res["NIPTS_pred_2013_adjust_segari"] = data.NIPTS_predict_iso1999_2013(
+    #     LAeq=res["LAeq_adjust_segment_ari_A+n"])
+    # res["NIPTS_pred_2023_adjust_segari"] = data.NIPTS_predict_iso1999_2023(
+    #     LAeq=res["LAeq_adjust_segment_ari_A+n"], extrapolation=extrapolation)
 
     return res
 
@@ -90,19 +103,30 @@ def extract_data_for_task(df, n_jobs=-1, **additional_set):
     return res_df
 
 
+def SPL_pad_func(x: torch.tensor):
+    value = 10 * torch.log10(torch.mean(10**(x/10)))
+    return value.item()
+
+
+def kurtosis_pan_func(x: torch.tensor):
+    value = 3
+    return value
+
 class TrainDataSet(Dataset):
 
     def __init__(self, data, windows_num: int = 480) -> None:
         self.feature = []
         for train_features in data[0]:
             tensor_list = []
-            for features in train_features:
-                tensor_list.append(torch.tensor(features[:windows_num]))
+            for features, pad_func in zip(train_features, (SPL_pad_func, kurtosis_pan_func)):
+                cut_off_tensor = torch.tensor(features[:windows_num])
+                tensor_list.append((cut_off_tensor, pad_func(cut_off_tensor)))
+            # !为降低填充值的影响，改为对SPL按有效长度内的等效均值进行填充、kurtosis按高斯噪声峰度值3进行填充
             padded_tensor = pad_sequence([
                 torch.cat(
                     (tensor,
-                     torch.zeros(windows_num - len(tensor), dtype=torch.long)))
-                for tensor in tensor_list
+                     pad_value * torch.ones(windows_num - len(tensor), dtype=torch.long)))
+                for tensor, pad_value in tensor_list
             ],
                                          batch_first=True)
             self.feature.append(padded_tensor)
@@ -140,7 +164,9 @@ if __name__ == "__main__":
                         default={
                             "mean_key": [3000, 4000, 6000],
                             "better_ear_strategy": "optimum_freq",
-                            "NIPTS_diagnose_strategy": "better"
+                            "NIPTS_diagnose_strategy": "better",
+                            "extrapolation": "Linear",
+                            "beta_baseline": 3
                         })
     parser.add_argument("--n_jobs", type=int, default=-1)
     parser.add_argument(
@@ -254,19 +280,28 @@ if __name__ == "__main__":
     extract_df = extract_data_for_task(df=original_data,
                                        n_jobs=n_jobs,
                                        **additional_set)
-    filter_df = filter_data(
-        df_total=extract_df,
-        drop_col=None,
-        dropna_set=["NIPTS", "SPL_dBA", "kurtosis"],
-        str_filter_dict={"staff_id": annotated_bad_case},
-        num_filter_dict={"age": {
-            "up_limit": 60,
-            "down_limit": 15
-        }},
-        eval_set=None)
-    filter_df = filter_df[filter_df["SPL_dBA"].apply(lambda x: not any(np.isnan(x)))]
+    filter_df = filter_data(df_total=extract_df,
+                            drop_col=None,
+                            dropna_set=["NIPTS", "SPL_dBA", "kurtosis"],
+                            str_filter_dict={"staff_id": annotated_bad_case},
+                            num_filter_dict={
+                                "age": {
+                                    "up_limit": 60,
+                                    "down_limit": 15
+                                },
+                                "LAeq": {
+                                    "up_limit": 100,
+                                    "down_limit": 70
+                                }
+                            },
+                            eval_set=None)
+    filter_df = filter_df[filter_df["SPL_dBA"].apply(
+        lambda x: not any(np.isnan(x)))]
     filter_df = filter_df[filter_df["kurtosis"].apply(lambda x: len(x) != 0)]
     logger.info(f"Data Size after drop []: {filter_df.shape[0]}")
+    filter_df.to_csv(output_path / "filter_Chinese_extract_df.csv",
+                     header=True,
+                     index=False)
 
     feature_columns = ["SPL_dBA", "kurtosis"]
     other_features = seq(filter_df.columns).filter(
@@ -274,6 +309,6 @@ if __name__ == "__main__":
     train_dataset = TrainDataSet(
         data=(filter_df[feature_columns].values, filter_df["NIPTS"].values,
               filter_df[other_features].to_dict(orient="records")),
-        windows_num=100)
+        windows_num=480)
     pickle.dump(train_dataset, open(output_path / "train_dataset.pkl", "wb"))
     print(1)

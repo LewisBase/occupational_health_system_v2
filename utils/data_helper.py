@@ -49,7 +49,7 @@ def reduce_mem_usage(df,vervose=True):
     return df
 
 
-@timer
+# @timer
 def array_padding(origin_data: Union[list, pd.Series, np.ndarray],
                   constant_values=0) -> np.ndarray:
     """对不等长的数组进行填充
@@ -342,3 +342,25 @@ def filter_data(
     df_total.reset_index(inplace=True, drop=True)
     logger.info(f"Data Size = {df_total.shape[0]}")
     return df_total
+
+    
+def single_group_emm_estimate(df: pd.DataFrame, y_col: str, group_col: str,
+                               group_names: list) -> pd.DataFrame:
+    """计算组别之间的EMM矩阵
+
+    Args:
+        df (pd.DataFrame): _description_
+        y_col (str): _description_
+        group_col (str): _description_
+        group_names (list): _description_
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+    model = sm.OLS.from_formula(f"{y_col}~C({group_col})", data=df)
+    result = model.fit()
+    emm = result.get_prediction(
+        exog=pd.DataFrame({f"{group_col}": group_names})).summary_frame()
+    emm.index = group_names
+    emm["size"] = df[group_col].value_counts().loc[emm.index]
+    return emm

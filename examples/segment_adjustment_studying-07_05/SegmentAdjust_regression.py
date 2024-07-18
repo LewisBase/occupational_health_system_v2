@@ -8,6 +8,8 @@
         进行SegmentAdjustment方法的回归拟合测试
 """
 import pickle
+import random
+import numpy as np
 from pathlib import Path
 from functional import seq
 from loguru import logger
@@ -24,18 +26,44 @@ from extract_all_Chinese_data import TrainDataSet
 from utils.data_helper import root_mean_squared_error
 
 
+# 设置随机种子
+def set_random_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    
+
 class SegmentAdjsttStepRunner(StepRunner):
 
     def step(self, features, label):
         # loss
         pred = self.model(features)
         loss = self.loss_fn(pred, label.unsqueeze(1).float())
+        # 对网络参数进行非负裁剪以及添加L2权重正则化项
+        l2_regularization = torch.tensor(0.)
+        for param in self.model.parameters():
+            param.data.clamp_(min=1e-3)
+            l2_regularization += torch.norm(param, 2)
+
+        weight_decay = 0.01
+        loss += weight_decay * l2_regularization
 
         # backward()
         if self.optimizer is not None and self.stage == "train":
+            self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-            self.optimizer.zero_grad()
+            # 梯度裁剪
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(),
+                                           max_norm=1.0)
+            # 使用钩子函数强制修改NAN的参数为零
+            with torch.no_grad():
+                for param in self.model.parameters():
+                    if torch.isnan(param).any():
+                        param[torch.isnan(param)] = 0
 
         # metric
         step_metric = {
@@ -86,6 +114,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_path", type=str, default="./results")
     parser.add_argument("--model_path", type=str, default="./models")
+    # parser.add_argument("--task", type=str, default="test")
     parser.add_argument("--task", type=str, default="train")
     args = parser.parse_args()
 
@@ -102,17 +131,25 @@ if __name__ == "__main__":
     train_dataset = pickle.load(open(input_path / "train_dataset.pkl", "rb"))
 
     # dataloader
-    train_dataloader = DataLoader(train_dataset, batch_size=12, shuffle=True)
+    seed = 2024
+    set_random_seed(seed)  # 设置随机种子
+    train_dataloader = DataLoader(train_dataset,
+                                  batch_size=512,
+                                  shuffle=True,
+                                  generator=torch.Generator().manual_seed(seed))
 
     # train model
-    segment_adjust = SegmentAdjustModel(in_feautres=100, out_feautres=1)
+    segment_adjust = SegmentAdjustModel(in_features=480, out_features=1)
 
     if task == "train":
         # pytorch优化参数
+        set_random_seed(seed)  # 设置随机种子
         learn_rate = 0.001
+        weight_decay = 0.01
         mse_loss = nn.MSELoss()
         optimizer = torch.optim.Adam(segment_adjust.parameters(),
-                                     lr=learn_rate)
+                                     lr=learn_rate,
+                                     weight_decay=weight_decay)
         dfhistory = train_model(
             model=segment_adjust,
             steprunner=SegmentAdjsttStepRunner,
@@ -127,8 +164,36 @@ if __name__ == "__main__":
             early_stop=100,
             monitor="val_loss",
             mode="min")
+        hat_lambda = segment_adjust.state_dict(
+        )["custom_layer.hat_lambda"].cpu().numpy()[0]
+        logger.info(f"weight_decay: {weight_decay}, \
+                      hat_lambda: {hat_lambda}")
+
+        # weight_0 = segment_adjust.state_dict()["custom_layer.weight_0"].cpu(
+        # ).numpy()[0]
+        # weight_1 = segment_adjust.state_dict()["custom_layer.weight_1"].cpu(
+        # ).numpy()[0]
+        # linear_weight = segment_adjust.state_dict()["linear.weight"].cpu(
+        # ).numpy()[0]
+        # linear_bias = segment_adjust.state_dict()["linear.bias"].cpu().numpy(
+        # )[0]
+        # logger.info(f"weight_decay: {weight_decay}, \
+        #             hat_lambda_1: {weight_1.mean()/weight_0.mean()},  \
+        #             hat_lambda_2: {(weight_1/weight_0).mean()}")
+
     else:
         segment_adjust.load_state_dict(
             torch.load(model_path / "SegmentAdjust_checkpoint.pt"))
-    
+        hat_lambda = segment_adjust.state_dict(
+        )["custom_layer.hat_lambda"].cpu().numpy()[0]
+        logger.info(f"hat_lambda: {hat_lambda}")
+        # weight_0 = segment_adjust.state_dict()["custom_layer.weight_0"].cpu(
+        # ).numpy()[0]
+        # weight_1 = segment_adjust.state_dict()["custom_layer.weight_1"].cpu(
+        # ).numpy()[0]
+        # linear_weight = segment_adjust.state_dict()["linear.weight"].cpu(
+        # ).numpy()[0]
+        # linear_bias = segment_adjust.state_dict()["linear.bias"].cpu().numpy(
+        # )[0]
+
     print(1)
