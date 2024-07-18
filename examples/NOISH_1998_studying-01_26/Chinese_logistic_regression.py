@@ -22,8 +22,8 @@ from scipy.optimize import minimize
 from staff_info import StaffInfo
 from diagnose_info.auditory_diagnose import AuditoryDiagnose
 from utils.data_helper import mark_group_name, filter_data
-from Chinese_control_group_logistic_regression_0 import logistic_func as logistic_func_control_0
-from Chinese_control_group_logistic_regression_1 import logistic_func as logistic_func_control_1
+from Chinese_logistic_regression_control_data_0 import logistic_func as logistic_func_control_0
+from Chinese_logistic_regression_control_data_1 import logistic_func as logistic_func_control_1
 
 from matplotlib.font_manager import FontProperties
 from matplotlib import rcParams
@@ -88,7 +88,7 @@ def extract_data_for_task(df, n_jobs=-1, **additional_set):
     return res
 
 
-def logistic_func(params, x):
+def logistic_func_original(params, x):
     alpha, beta1, beta21, beta22, beta23, phi = params
     F = alpha + beta1 * x[:, 0] + beta21 * np.power(
         x[:, 1], phi) + beta22 * np.power(x[:, 2], phi) + beta23 * np.power(
@@ -96,7 +96,7 @@ def logistic_func(params, x):
     return np.exp(F) / (1 + np.exp(F))
 
 
-def logistic_func_new(params, phi, x):
+def logistic_func_indepphi(params, phi, x):
     alpha, beta1, beta21, beta22, beta23 = params
     F = alpha + beta1 * x[:, 0] + beta21 * np.power(
         x[:, 1], phi) + beta22 * np.power(x[:, 2], phi) + beta23 * np.power(
@@ -104,20 +104,21 @@ def logistic_func_new(params, phi, x):
     return np.exp(F) / (1 + np.exp(F))
 
 
-def log_likelihood(params, x, y):
-    p = logistic_func(params, x)
+def log_likelihood_original(params, x, y):
+    p = logistic_func_original(params, x)
     log_likelihood = -1 * np.sum(y * np.log(p) + (1 - y) * np.log(1 - p))
     return log_likelihood
 
 
-def log_likelihood_new(params, phi, x, y):
-    p = logistic_func_new(params, phi, x)
+def log_likelihood_indepphi(params, phi, x, y):
+    p = logistic_func_indepphi(params, phi, x)
     log_likelihood = -1 * np.sum(y * np.log(p) + (1 - y) * np.log(1 - p))
     return log_likelihood
 
 
 def userdefine_logistic_regression_task(
         fit_df: pd.DataFrame,
+        max_LAeq: float,
         models_path: Path,
         model_name: str,
         y_col_name: str = "NIHL1234_Y",
@@ -147,6 +148,9 @@ def userdefine_logistic_regression_task(
     minimize_options = kwargs.pop("minimize_options", {'maxiter': 10000})
     minimize_bounds = kwargs.pop("minimize_bounds", None)
 
+    logger.info(f"minimize method: {minimize_method}")
+    logger.info(f"minimize bounds: {minimize_bounds}")
+
     log_likelihood_value = []
     params_estimated = []
     phi_estimated = []
@@ -154,19 +158,18 @@ def userdefine_logistic_regression_task(
         work_df = fit_df.copy()
         work_df = pd.get_dummies(work_df, columns=["duration_box_best"])
         work_df["LAeq"] -= L_control
-        work_df["LAeq"] /= work_df["LAeq"].max()
+        work_df["LAeq"] /= (max_LAeq - L_control)
+        # work_df["LAeq"] /= work_df["LAeq"].max()
         work_df["duration_box_best_D-1"] *= work_df["LAeq"]
         work_df["duration_box_best_D-2"] *= work_df["LAeq"]
         work_df["duration_box_best_D-3"] *= work_df["LAeq"]
 
         y = work_df[y_col_name]
         X = work_df.drop(columns=[y_col_name, "LAeq"])
-        logger.info(f"minimize method: {minimize_method}")
-        logger.info(f"minimize bounds: {minimize_bounds}")
         if phi_range:
             for phi in phi_range:
                 logger.info(f"Fixed phi: {phi}")
-                results = minimize(log_likelihood_new,
+                results = minimize(log_likelihood_indepphi,
                                    params_init,
                                    args=(phi, X.values, y.values),
                                    method=minimize_method,
@@ -176,7 +179,7 @@ def userdefine_logistic_regression_task(
                 params_estimated.append(results.x)
                 phi_estimated.append(phi)
         else:
-            results = minimize(log_likelihood,
+            results = minimize(log_likelihood_original,
                                params_init,
                                args=(X.values, y.values),
                                method=minimize_method,
@@ -188,8 +191,8 @@ def userdefine_logistic_regression_task(
         logger.info(f"Fit status: {results.success}")
         logger.info(f"Log likehood: {round(results.fun,2)}")
         logger.info(f"Iterations: {results.nit}")
+        logger.info(f"Fit parameters: {results.x}")
 
-    max_LAeq = extract_df["LAeq"].max()
     best_log_likelihood_value = np.min(log_likelihood_value)
     best_params_estimated = params_estimated[np.argmin(log_likelihood_value)]
     if phi_range:
@@ -255,7 +258,7 @@ def userdefine_logistic_regression_plot(best_params_estimated,
 
     plot_X = np.concatenate((age_matrix[:, np.newaxis], LAeq_duration_matrix),
                             axis=1)
-    pred_y = logistic_func(x=plot_X, params=best_params_estimated)
+    pred_y = logistic_func_original(x=plot_X, params=best_params_estimated)
     f_prime = np.gradient(pred_y, LAeq)
     f_prime_double = np.gradient(f_prime, LAeq)
     logger.info(f"f prime: {f_prime}")
@@ -276,7 +279,7 @@ def userdefine_logistic_regression_plot(best_params_estimated,
         max_LAeq - best_L_control) * duration
     point_X = np.concatenate((age_array, point_x_duration_array),
                              axis=0)[np.newaxis, :]
-    point_y = logistic_func(x=point_X, params=best_params_estimated)
+    point_y = logistic_func_original(x=point_X, params=best_params_estimated)
 
     if control_params_estimated is not None:
         if len(control_params_estimated) == 2:
@@ -300,7 +303,7 @@ def userdefine_logistic_regression_plot(best_params_estimated,
                 color="red",
                 arrowprops=dict(color="red", arrowstyle="->"))
     ax.set_title(f"Age = {age}, Duration {duration_desp}")
-    ax.set_ylabel("Excess Risk of NIHL")
+    ax.set_ylabel("Risk of NIHL")
     ax.set_xlabel("Sound Level in dB")
     if plot_der:
         ax2 = ax.twinx()
@@ -344,6 +347,15 @@ def logistic_vector_func(params, age_grid, LAeq_grid, duration):
 
 def userdefine_logistic_vector_plot(best_params_estimated, best_L_control,
                                     max_LAeq, picture_name, pictures_path):
+    """根据回归结果绘制三维图
+
+    Args:
+        best_params_estimated (_type_): _description_
+        best_L_control (_type_): _description_
+        max_LAeq (_type_): _description_
+        picture_name (_type_): _description_
+        pictures_path (_type_): _description_
+    """
     picture_path = Path(pictures_path) / Path(picture_name)
     ages = np.linspace(15, 61, 100)
     LAeqs = np.linspace(70, 100, 100)
@@ -382,6 +394,19 @@ def userdefine_logistic_vector_compare_plot(best_params_estimated_1,
                                             duration,
                                             picture_name, 
                                             pictures_path):
+    """根据回归结果绘制三维对比图
+
+    Args:
+        best_params_estimated_1 (_type_): _description_
+        best_L_control_1 (_type_): _description_
+        max_LAeq_1 (_type_): _description_
+        best_params_estimated_2 (_type_): _description_
+        best_L_control_2 (_type_): _description_
+        max_LAeq_2 (_type_): _description_
+        duration (_type_): _description_
+        picture_name (_type_): _description_
+        pictures_path (_type_): _description_
+    """
     picture_path = Path(pictures_path) / Path(picture_name)
     ages = np.linspace(15, 61, 100)
     LAeqs = np.linspace(70, 100, 100)
@@ -417,6 +442,7 @@ def userdefine_logistic_vector_compare_plot(best_params_estimated_1,
                                  zaxis=dict(
                                      title="explanatory variables value")))
     fig.write_html(picture_path)
+
 
 if __name__ == "__main__":
     from datetime import datetime
@@ -600,6 +626,7 @@ if __name__ == "__main__":
 
         # 使用全部数据
         ## NIHL1234_Y
+        max_LAeq = extract_df["LAeq"].max()
         fit_df = extract_df.query(
             "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
                 "age", "LAeq", "duration_box_best", "NIHL1234_Y"

@@ -29,7 +29,7 @@ config = {
 }
 rcParams.update(config)
 
-from Chinese_control_group_logistic_regression_0 import logistic_func
+from Chinese_logistic_regression_control_data_0 import logistic_func
 
 
 def userdefine_logistic_regression_plot(control_params_estimated_1234,
@@ -42,6 +42,7 @@ def userdefine_logistic_regression_plot(control_params_estimated_1234,
                                         **kwargs):
     dpi = kwargs.pop("dpi", 330)
     is_show = kwargs.pop("is_show", False)
+    fig_title = kwargs.pop("fig_title", None)
 
     plot_X = age[:, np.newaxis]
     pred_y_1234 = logistic_func(x=plot_X,
@@ -50,8 +51,8 @@ def userdefine_logistic_regression_plot(control_params_estimated_1234,
                                params=control_params_estimated_346) * 100
 
     fig, ax = plt.subplots(1, figsize=(6.5, 5), dpi=dpi)
-    ax.plot(plot_X, pred_y_1234, label="$\\text{NIHL}_{1234}$")
-    ax.plot(plot_X, pred_y_346, label="$\\text{NIHL}_{346}$")
+    ax.plot(plot_X, pred_y_1234, label="$\\text{HL}_{1234}$")
+    ax.plot(plot_X, pred_y_346, label="$\\text{HL}_{346}$")
     x_min, x_max = ax.get_xlim()
     y_min, y_max = ax.get_ylim()
     for key_point_x in key_point_xs:
@@ -70,21 +71,23 @@ def userdefine_logistic_regression_plot(control_params_estimated_1234,
         ax.annotate("{:.2f}".format(key_point_y_1234),
                     xy=(key_point_x, key_point_y_1234),
                     xytext=(key_point_x - (x_max - x_min) / 5,
-                            key_point_y_1234 + (y_max - y_min) / 10),
+                            key_point_y_1234 + (y_max - y_min) / 20),
                     color="#1f77b4",
                     arrowprops=dict(color="#1f77b4", arrowstyle="->", linestyle="--"))
         ax.annotate("{:.2f}".format(key_point_y_346),
                     xy=(key_point_x, key_point_y_346),
                     xytext=(key_point_x - (x_max - x_min) / 5,
-                            key_point_y_346 + (y_max - y_min) / 5),
+                            key_point_y_346 + (y_max - y_min) / 15),
                     color="#ff7f0e",
                     arrowprops=dict(color="#ff7f0e", arrowstyle="->", linestyle="--"))
     ax.set_ylim(y_min, y_max)
-    ax.set_ylabel("Background Risk of NIHL (%)")
+    ax.set_ylabel("Background Risk of Hearing Loss (%)")
     ax.set_xlabel("Age (year)")
     ax.set_xticks([15,30,45,60,65,75])
 
     plt.legend(loc="best")
+    if fig_title:
+        plt.title(fig_title)
     plt.tight_layout()
     picture_path = Path(pictures_path) / f"{picture_name}.{picture_format}"
     plt.savefig(picture_path, format=picture_format, dpi=dpi)
@@ -107,6 +110,7 @@ if __name__ == "__main__":
     models_path = Path(args.models_path)
     pictures_path = Path(args.pictures_path)
 
+    # Chinese
     control_params_estimated_1234, control_log_likelihood_value_1234 = pickle.load(
         open(
             models_path /
@@ -119,6 +123,48 @@ if __name__ == "__main__":
     num_res = userdefine_logistic_regression_plot(
         control_params_estimated_1234=control_params_estimated_1234,
         control_params_estimated_346=control_params_estimated_346,
-        pictures_path=pictures_path)
+        pictures_path=pictures_path,
+        picture_name="Fig3-Chinese",
+        picture_format="png",
+        dpi=100,
+        fig_title="Chinese Data")
+
+    # NOISH data
+    control_params_estimated_1234, control_log_likelihood_value_1234 = pickle.load(
+        open(
+            models_path /
+            Path("HL1234_Y-NOISH_control_group_udlr_model_0.pkl"), "rb"))
+    control_params_estimated_346, control_log_likelihood_value_346 = pickle.load(
+        open(
+            models_path /
+            Path("HL346_Y-NOISH_control_group_udlr_model_0.pkl"), "rb"))
+
+    num_res = userdefine_logistic_regression_plot(
+        control_params_estimated_1234=control_params_estimated_1234,
+        control_params_estimated_346=control_params_estimated_346,
+        pictures_path=pictures_path,
+        picture_name="Fig3-NOISH",
+        picture_format="png",
+        dpi=100,
+        fig_title="NOISH Data")
+
+    # NOISH data experiment + control
+    base_params_estimated_1234, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
+        open(
+            models_path /
+            Path("HL1234_Y-NOISH_total_group_udlr_model.pkl"), "rb"))
+    base_params_estimated_346, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
+        open(
+            models_path /
+            Path("HL346_Y-NOISH_total_group_udlr_model.pkl"), "rb"))
+
+    num_res = userdefine_logistic_regression_plot(
+        control_params_estimated_1234=base_params_estimated_1234[:2],
+        control_params_estimated_346=base_params_estimated_346[:2],
+        pictures_path=pictures_path,
+        picture_name="Fig3-NOISH-total",
+        picture_format="png",
+        dpi=100,
+        fig_title="NOISH Total Data")
 
     print(1)

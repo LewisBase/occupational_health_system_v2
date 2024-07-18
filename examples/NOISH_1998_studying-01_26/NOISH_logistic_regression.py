@@ -6,25 +6,20 @@
 @Software: vscode
 @Description:
         复现NOISH,1998论文中有关逻辑回归的内容
+        2024.07.17 更新
 """
-import re
-import ast
 import pickle
 import pandas as pd
 import numpy as np
-import statsmodels.api as sm
-import matplotlib.pyplot as plt
 from pathlib import Path
-from functional import seq
 from loguru import logger
 from joblib import Parallel, delayed
-from sklearn.preprocessing import MinMaxScaler
-from scipy.optimize import minimize
 
 from staff_info import StaffInfo
 from utils.data_helper import mark_group_name
+from Chinese_logistic_regression import \
+    userdefine_logistic_regression_task, userdefine_logistic_regression_plot
 
-from matplotlib.font_manager import FontProperties
 from matplotlib import rcParams
 
 config = {
@@ -108,35 +103,6 @@ def extract_data_for_task(df, n_jobs=-1, **additional_set):
     return res
 
 
-def logistic_func(params, x):
-    alpha, beta1, beta21, beta22, beta23, phi= params
-    F = alpha + beta1 * x[:, 0] + \
-        beta21 * np.power(x[:, 1], phi) + \
-        beta22 * np.power(x[:, 2], phi) + \
-        beta23 * np.power(x[:, 3], phi)
-    # alpha, beta1, beta21, beta22, beta23, phi, L0 = params
-    # F = alpha + beta1 * x[:, 0] + \
-    #     beta21 * np.power(x[:, 1] - L0, phi) + \
-    #     beta22 * np.power(x[:, 2] - L0, phi) + \
-    #     beta23 * np.power(x[:, 3] - L0, phi)
-    return np.exp(F) / (1 + np.exp(F))
-
-
-def log_likelihood(params, x, y):
-    p = logistic_func(params, x)
-    log_likelihood = -1 * np.sum(y * np.log(p) + (1 - y) * np.log(1 - p))
-    return log_likelihood
-
-
-def statsmodels_logistic_fit(df_box, regression_X_col, regression_y_col):
-    y = df_box[regression_y_col]
-    X = df_box[regression_X_col]
-    X = sm.add_constant(X)
-    model = sm.Logit(y, X).fit()
-    logger.info(f"{model.summary()}")
-    return model
-
-
 if __name__ == "__main__":
     from datetime import datetime
     logger.add(
@@ -162,6 +128,7 @@ if __name__ == "__main__":
                             "NIPTS_diagnose_strategy": "better"
                         })
     parser.add_argument("--task", type=str, default="analysis")
+    # parser.add_argument("--task", type=str, default="extract")
     parser.add_argument("--n_jobs", type=int, default=-1)
     args = parser.parse_args()
 
@@ -191,68 +158,44 @@ if __name__ == "__main__":
                           index=True)
     if task == "analysis":
         extract_df = pd.read_csv(input_path, header=0, index_col="staff_id")
-
-        # Best model in paper
         duration_cut = [1, 4, 10, np.inf]
         extract_df["duration_box_best"] = extract_df["duration"].apply(
             lambda x: mark_group_name(x, qcut_set=duration_cut, prefix="D-"))
-        
-        log_likelihood_value = []
-        params_estimated = []
-        for L_control in range(60, 80):
-            fit_df = extract_df.query(
+        max_LAeq = extract_df["LAeq"].max()
+
+        ## 使用全部实验组数据
+        fit_df = extract_df.query(
             "duration_box_best in ('D-1', 'D-2', 'D-3')")[[
                 "age", "LAeq", "duration_box_best", "HL1234_Y"
             ]]
-            fit_df = pd.get_dummies(fit_df, columns=["duration_box_best"])
-            fit_df["LAeq"] -= L_control
-            fit_df["LAeq"] /= fit_df["LAeq"].max()
-            fit_df["duration_box_best_D-1"] *= fit_df["LAeq"]
-            fit_df["duration_box_best_D-2"] *= fit_df["LAeq"]
-            fit_df["duration_box_best_D-3"] *= fit_df["LAeq"]
+        best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value\
+            = userdefine_logistic_regression_task(
+            fit_df=fit_df,
+            max_LAeq=max_LAeq,
+            models_path=models_path,
+            model_name="NOISH_experiment_group_udlr_model.pkl",
+            y_col_name="HL1234_Y",
+            params_init=[-5.05, 0.08, 2.66, 3.98, 6.42, 3.4],
+            L_control_range=np.arange(55, 79))
 
-            y = fit_df["HL1234_Y"]
-            X = fit_df.drop(columns=["HL1234_Y", "LAeq"])
-            # params_init = [-5, 0.08, 2, 3, 4, 3, 0.7]
-            params_init = 0.02 * np.ones(6)
-            results = minimize(log_likelihood,
-                               params_init,
-                               args=(X.values, y.values),
-                               method="Nelder-Mead", #"BFGS",
-                               options={'maxiter': 100000})
-            logger.info(f"Fit result for L_control = {L_control}")
-            logger.info(f"Fit status: {results.success}")
-            logger.info(f"Log likehood: {results.fun}")
-            logger.info(f"Iterations: {results.nit}")
-            
-            log_likelihood_value.append(results.fun)
-            params_estimated.append(results.x)
-        max_LAeq = extract_df["LAeq"].max()
-        best_log_likelihood_value = np.min(log_likelihood_value)
-        best_params_estimated = params_estimated[np.argmin(log_likelihood_value)]
-        best_L_control = np.arange(60, 80)[np.argmin(log_likelihood_value)]
-        logger.info(f"Final result: {best_params_estimated} + {best_L_control}. Log likelihood: {best_log_likelihood_value}")
-        
-        pickle.dump([best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value],
-                    open(models_path / f"NOISH_experiment_group_udlr-_classifier_model.pkl", "wb"))
+        ## plot result
+        userdefine_logistic_regression_plot(
+            best_params_estimated=best_params_estimated,
+            best_L_control=best_L_control,
+            max_LAeq=max_LAeq,
+            age=45,
+            duration=np.array([0, 0, 1]),
+            LAeq=np.arange(70, 100),
+            point_type="2nd")
 
-        # plot logistic
-        age = 65
-        LAeq = np.arange(50, 100)
-        plot_X = np.stack([
-            age * np.ones(len(LAeq)),
-            (LAeq - best_L_control) / (max_LAeq - best_L_control) * np.zeros(len(LAeq)),
-            (LAeq - best_L_control) / (max_LAeq - best_L_control) * np.zeros(len(LAeq)),
-            (LAeq - best_L_control) / (max_LAeq - best_L_control) * np.ones(len(LAeq)),
-        ],
-                          axis=1)
-        pred_y = logistic_func(params=best_params_estimated, x=plot_X)
-        fig, ax = plt.subplots(1, figsize=(6.5, 5))
-        ax.plot(LAeq, pred_y, alpha=0.4)
-        ax.set_title(f"Age = {age}, Duration > 10")
-        ax.set_ylabel("Probability")
-        ax.set_xlabel("Sound Level in dB")
-        plt.show()
-        # plt.close()
+        ## plot result in paper
+        userdefine_logistic_regression_plot(
+            best_params_estimated=[-5.0557, 0.0812, 2.6653, 3.989, 6.4206, 3.4],
+            best_L_control=73,
+            max_LAeq=max_LAeq,
+            age=45,
+            duration=np.array([0, 0, 1]),
+            LAeq=np.arange(70, 100),
+            point_type="2nd")
 
     print(1)

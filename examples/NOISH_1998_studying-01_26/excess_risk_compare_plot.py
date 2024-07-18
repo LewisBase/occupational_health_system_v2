@@ -29,9 +29,9 @@ config = {
 }
 rcParams.update(config)
 
-from Chinese_logistic_regression import logistic_func as logistic_func
-from Chinese_control_group_logistic_regression_0 import logistic_func as logistic_func_control_0
-from Chinese_control_group_logistic_regression_1 import logistic_func as logistic_func_control_1
+from Chinese_logistic_regression import logistic_func_original as logistic_func_original
+from Chinese_logistic_regression_control_data_0 import logistic_func as logistic_func_control_0
+from Chinese_logistic_regression_control_data_1 import logistic_func as logistic_func_control_1
 
 
 def userdefine_logistic_regression_plot(best_params_estimateds: list,
@@ -73,7 +73,7 @@ def userdefine_logistic_regression_plot(best_params_estimateds: list,
 
         plot_X = np.concatenate(
             (age_matrix[:, np.newaxis], LAeq_duration_matrix), axis=1)
-        pred_y = logistic_func(x=plot_X, params=best_params_estimated)
+        pred_y = logistic_func_original(x=plot_X, params=best_params_estimated)
 
         if len(control_params_estimated) == 2:
             control_X = np.array([[age]])
