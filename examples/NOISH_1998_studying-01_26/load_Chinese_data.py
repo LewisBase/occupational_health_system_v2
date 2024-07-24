@@ -571,7 +571,8 @@ if __name__ == "__main__":
                         type=dict,
                         default={
                             "mean_key": [3000, 4000, 6000],
-                            "better_ear_strategy": "optimum_freq",
+                            "better_ear_strategy": "average_freq",
+                            # "better_ear_strategy": "optimum_freq",
                             "NIPTS_diagnose_strategy": "better"
                         })
     parser.add_argument("--n_jobs", type=int, default=-1)
@@ -613,9 +614,9 @@ if __name__ == "__main__":
                                              task=task,
                                              **additional_set)
         total_mesg_extract.append(mesg_extract)
-    pickle.dump(total_mesg_extract, open(output_path / "extract_Chinese_data.pkl",
-                                         "wb"))
-    mesg_extract_load = pickle.load(
-        open(output_path / "extract_Chinese_data.pkl", "rb"))
+    pickle.dump(total_mesg_extract, open(output_path / "extract_Chinese_data_average_freq.pkl", "wb"))
+    # pickle.dump(total_mesg_extract, open(output_path / "extract_Chinese_data.pkl", "wb"))
+    mesg_extract_load = pickle.load(open(output_path / "extract_Chinese_data_average_freq.pkl", "rb"))
+    # mesg_extract_load = pickle.load(open(output_path / "extract_Chinese_data.pkl", "rb"))
     mesg_extract_load = seq(mesg_extract_load).flatten().list()
     print(1)

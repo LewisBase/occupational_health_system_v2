@@ -39,7 +39,6 @@ rcParams.update(config)
 
 
 def _extract_data_for_task(data, **additional_set):
-    better_ear_strategy = additional_set.pop("better_ear_strategy")
     NIPTS_diagnose_strategy = additional_set.pop("NIPTS_diagnose_strategy")
 
     res = {}
@@ -454,13 +453,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # parser.add_argument("--input_path",
     #                     type=str,
-    #                     default="./cache/extract_Chinese_data.pkl")
+    #                     default="./cache/extract_Chinese_data_average_freq.pkl")
+    #                     # default="./cache/extract_Chinese_data.pkl")
     # parser.add_argument("--task", type=str, default="extract")
     parser.add_argument(
         "--input_path",
         type=str,
-        default="./cache/Chinese_extract_experiment_classifier_df.csv")
-    # default="./cache/Chinese_extract_under_80dB_df.csv")
+        default="./cache/Chinese_extract_experiment_df_average_freq.csv")
+        # default="./cache/Chinese_extract_experiment_classifier_df.csv")
     parser.add_argument("--task", type=str, default="analysis")
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--models_path", type=str, default="./models")
@@ -468,9 +468,6 @@ if __name__ == "__main__":
     parser.add_argument("--additional_set",
                         type=dict,
                         default={
-                            "mean_key": [1000, 2000, 3000, 4000],
-                            "PTA_value_fix": False,
-                            "better_ear_strategy": "average_freq",
                             "NIPTS_diagnose_strategy": "better"
                         })
     parser.add_argument(
@@ -592,7 +589,8 @@ if __name__ == "__main__":
             str_filter_dict={"staff_id": annotated_bad_case},
             num_filter_dict={
                 "age": {
-                    "up_limit": 60,
+                    "up_limit": 65,
+                    # "up_limit": 60,
                     "down_limit": 15
                 },
                 # "LAeq": {
@@ -605,7 +603,8 @@ if __name__ == "__main__":
         filter_df.index = filter_df.staff_id
         filter_df.drop("staff_id", axis=1, inplace=True)
         filter_df.to_csv(output_path /
-                         "Chinese_extract_experiment_classifier_df.csv",
+                         "Chinese_extract_experiment_df_average_freq.csv",
+                        #  "Chinese_extract_experiment_classifier_df.csv",
                          header=True,
                          index=True)
     if task == "analysis":
@@ -631,15 +630,16 @@ if __name__ == "__main__":
             "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
                 "age", "LAeq", "duration_box_best", "NIHL1234_Y"
             ]]
-        # userdefine_logistic_regression_task(
-        #     fit_df=fit_df,
-        #     models_path=models_path,
-        #     model_name="Chinese_experiment_group_udlr_model.pkl",
-        #     y_col_name="NIHL1234_Y",
-        #     params_init=[-4.18, 0.07, 1.32, 2.13, 8.65, 3],
-        #     L_control_range=np.arange(70, 90),
-        #     # minimize_method = "SLSQP",
-        #     minimize_bounds = ([-6,-4],[0.06,0.09],[0,3],[3,5],[6,9],[3,4]))
+        userdefine_logistic_regression_task(
+            fit_df=fit_df,
+            max_LAeq=max_LAeq,
+            models_path=models_path,
+            model_name="Chinese_experiment_group_udlr_model_average_freq.pkl",
+            y_col_name="NIHL1234_Y",
+            params_init=[-4.18, 0.07, 1.32, 2.13, 8.65],
+            L_control_range=np.arange(60, 79),
+            phi_range=[1,2,3,4,5],
+            minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9]))
         # userdefine_logistic_regression_task(
         #     fit_df=fit_df,
         #     models_path=models_path,
@@ -650,21 +650,11 @@ if __name__ == "__main__":
         #     phi_range=[3],
         #     minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9]))
 
-        # single test
-        # userdefine_logistic_regression_task(
-        #     fit_df=fit_df,
-        #     models_path=models_path,
-        #     model_name="Chinese_experiment_group_udlr_model-phi_2.pkl",
-        #     y_col_name="NIHL346_Y",
-        #     params_init=[-4.18, 0.07, 1.32, 2.13, 8.65],
-        #     L_control_range=np.arange(55, 70),
-        #     phi_range=[2],
-        #     minimize_bounds = ([None,None],[None,None],[1,4],[4,6],[6,9])
-        # )
+        
         best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
             open(
                 models_path /
-                Path("NIHL1234_Y-Chinese_experiment_group_udlr_model.pkl"),
+                Path("NIHL1234_Y-Chinese_experiment_group_udlr_model_average_freq.pkl"),
                 "rb"))
         control_params_estimated_0, control_log_likelihood_value_0 = pickle.load(
             open(

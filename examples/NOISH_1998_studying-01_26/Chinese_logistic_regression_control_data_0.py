@@ -37,7 +37,6 @@ rcParams.update(config)
 
 
 def _extract_data_for_task(data, **additional_set):
-    better_ear_strategy = additional_set.pop("better_ear_strategy")
     NIPTS_diagnose_strategy = additional_set.pop("NIPTS_diagnose_strategy")
 
     res = {}
@@ -200,23 +199,23 @@ if __name__ == "__main__":
     # parser.add_argument("--input_paths",
     #                     type=list,
     #                     default=[
-    #                         "./cache/extract_Chinese_data.pkl",
-    #                         "./cache/extract_Chinese_control_data.pkl"
+    #                         "./cache/extract_Chinese_data_average_freq.pkl",
+    #                         "./cache/extract_Chinese_control_data_average_freq.pkl"
+    #                         # "./cache/extract_Chinese_data.pkl",
+    #                         # "./cache/extract_Chinese_control_data.pkl"
     #                     ])
     # parser.add_argument("--task", type=str, default="extract")
     parser.add_argument(
         "--input_paths",
         type=str,
-        default="./cache/Chinese_extract_control_classifier_df.csv")
+        default="./cache/Chinese_extract_control_df_average_freq.csv")
+        # default="./cache/Chinese_extract_control_classifier_df.csv")
     parser.add_argument("--task", type=str, default="analysis")
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--models_path", type=str, default="./models")
     parser.add_argument("--additional_set",
                         type=dict,
                         default={
-                            "mean_key": [1000, 2000, 3000, 4000],
-                            "PTA_value_fix": False,
-                            "better_ear_strategy": "average_freq",
                             "NIPTS_diagnose_strategy": "better"
                         })
     parser.add_argument(
@@ -343,7 +342,8 @@ if __name__ == "__main__":
                     str_filter_dict={"staff_id": annotated_bad_case},
                     num_filter_dict={
                         "age": {
-                            "up_limit": 60,
+                            "up_limit": 65,
+                            # "up_limit": 60,
                             "down_limit": 15
                         },
                     },
@@ -360,7 +360,8 @@ if __name__ == "__main__":
                     str_filter_dict={"staff_id": annotated_bad_case},
                     num_filter_dict={
                         "age": {
-                            "up_limit": 60,
+                            "up_limit": 65,
+                            # "up_limit": 60,
                             "down_limit": 15
                         },
                         "LAeq": {
@@ -374,7 +375,8 @@ if __name__ == "__main__":
             filter_df.drop("staff_id", axis=1, inplace=True)
             final_filter_df = pd.concat([final_filter_df, filter_df], axis=0)
         final_filter_df.to_csv(output_path /
-                         "Chinese_extract_control_classifier_df.csv",
+                         "Chinese_extract_control_df_average_freq.csv",
+                        #  "Chinese_extract_control_classifier_df.csv",
                          header=True,
                          index=True)
     if task == "analysis":
@@ -382,14 +384,15 @@ if __name__ == "__main__":
 
         # 使用全部数据
         ## NIHL1234_Y
-        # fit_df = extract_df[["age", "NIHL1234_Y"]]
-        fit_df = extract_df[["age", "NIHL346_Y"]]
+        fit_df = extract_df[["age", "NIHL1234_Y"]]
+        # fit_df = extract_df[["age", "NIHL346_Y"]]
         userdefine_logistic_regression_task(
             fit_df=fit_df,
             models_path=models_path,
-            model_name="Chinese_control_group_udlr_model_0.pkl",
-            # y_col_name="NIHL1234_Y",
-            y_col_name="NIHL346_Y",
+            model_name="Chinese_control_group_udlr_model_0_average_freq.pkl",
+            # model_name="Chinese_control_group_udlr_model_0.pkl",
+            y_col_name="NIHL1234_Y",
+            # y_col_name="NIHL346_Y",
             params_init=[-3, 0.08],
         )
         best_params_estimated, best_log_likelihood_value = pickle.load(

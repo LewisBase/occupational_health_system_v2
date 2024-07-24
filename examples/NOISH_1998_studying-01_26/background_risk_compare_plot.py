@@ -148,6 +148,26 @@ if __name__ == "__main__":
         dpi=100,
         fig_title="NOISH Data")
 
+    # Chinese data experiment + control
+    base_params_estimated_1234, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
+        open(
+            models_path /
+            Path("NIHL1234_Y-Chinese_total_group_udlr_model.pkl"), "rb"))
+    base_params_estimated_346, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
+        open(
+            models_path /
+            Path("NIHL346_Y-Chinese_total_group_udlr_model.pkl"), "rb"))
+
+    num_res = userdefine_logistic_regression_plot(
+        control_params_estimated_1234=base_params_estimated_1234[:2],
+        control_params_estimated_346=base_params_estimated_346[:2],
+        pictures_path=pictures_path,
+        picture_name="Fig3-Chinese-total",
+        picture_format="png",
+        dpi=100,
+        fig_title="Chinese Total Data")
+    
+    
     # NOISH data experiment + control
     base_params_estimated_1234, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
         open(
@@ -166,5 +186,24 @@ if __name__ == "__main__":
         picture_format="png",
         dpi=100,
         fig_title="NOISH Total Data")
+
+    # Chinese+NOISH data control
+    base_params_estimated_1234, best_log_likelihood_value = pickle.load(
+        open(
+            models_path /
+            Path("HL1234_Y-Chinese_NOISH_control_group_udlr_model_0.pkl"), "rb"))
+    base_params_estimated_346, best_log_likelihood_value = pickle.load(
+        open(
+            models_path /
+            Path("HL346_Y-Chinese_NOISH_control_group_udlr_model_0.pkl"), "rb"))
+
+    num_res = userdefine_logistic_regression_plot(
+        control_params_estimated_1234=base_params_estimated_1234,
+        control_params_estimated_346=base_params_estimated_346,
+        pictures_path=pictures_path,
+        picture_name="Fig3-NOISH+Chinese-total",
+        picture_format="png",
+        dpi=100,
+        fig_title="Chinese+NOISH Control Data")
 
     print(1)

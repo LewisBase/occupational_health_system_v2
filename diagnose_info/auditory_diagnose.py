@@ -18,7 +18,7 @@ class AuditoryDiagnose(BaseModel):
         pass
 
     @staticmethod
-    def NIPTS(detection_result: PTAResult,
+    def NIPTS(detection_result: PTAResult, # type: ignore
               sex: str, age: int,
               percentrage: int = 50,
               mean_key: list = [3000, 4000, 6000],

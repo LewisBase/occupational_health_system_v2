@@ -43,6 +43,10 @@ class PTAResult(PointResult):
             self._filter_signals(**kwargs)
 
     def _better_filter(self, **kwargs):
+        # 有关better_ear_strategy的说明
+        # better_mean: 先分别对两边耳的听阈结果计算平均值，再取听阈结果更好的一边作为选择
+        # optimum_freq: 先根据两边耳的听阈结果选出指定频域下更好的混合结果，再做平均
+        # average_freq: 不做更好耳的判断，直接计算两边耳听阈结果的平均值
         better_ear_strategy = kwargs.get("better_ear_strategy", "mean")
         mean_key = kwargs.get("mean_key", None)
 
@@ -87,6 +91,7 @@ class PTAResult(PointResult):
             self.better_ear_data = dict(zip(better_ear_x, better_ear_y))
 
     def mean(self, **kwargs):
+    # 由于再构建对象的过程中就已经指定了better_ear_strategy，所以在调用mean函数时不会再次判断better_ear
         mean_key = kwargs.get("mean_key", None)
         if not mean_key:
             return np.nanmean(seq(self.better_ear_data.values()).list())
