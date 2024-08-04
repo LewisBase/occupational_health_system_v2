@@ -2,7 +2,7 @@
 """
 @DATE: 2024-06-12 11:25:14
 @Author: Liu Hengjiang
-@File: examples\\NOISH_1998_studying-01_26\excess_risk_kurtosis_compare_plot.py
+@File: examples\\NOISH_1998_studying-01_26\plot_excess_risk_kurtosis_compare.py
 @Software: vscode
 @Description:
         对比高低峰度组在不同NIHL定义及人群分组下Excess Risk的变化曲线
@@ -30,8 +30,8 @@ config = {
 rcParams.update(config)
 
 from Chinese_logistic_regression import logistic_func_original as logistic_func_original
-from Chinese_control_group_logistic_regression_0 import logistic_func as logistic_func_control_0
-from Chinese_control_group_logistic_regression_1 import logistic_func as logistic_func_control_1
+from Chinese_logistic_regression_control_data_0 import logistic_func as logistic_func_control_0
+from Chinese_logistic_regression_control_data_1 import logistic_func as logistic_func_control_1
 
 
 def userdefine_logistic_regression_plot(best_params_estimateds: list,

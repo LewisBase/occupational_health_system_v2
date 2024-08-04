@@ -2,7 +2,7 @@
 """
 @DATE: 2024-07-17 15:38:19
 @Author: Liu Hengjiang
-@File: examples\\NOISH_1998_studying-01_26\\NOISH_excess_risk_plot.py
+@File: examples\\NOISH_1998_studying-01_26\\plot_NOISH_excess_risk.py
 @Software: vscode
 @Description:
         对NOISH复现的结果进行excess risk计算并绘图
@@ -30,8 +30,8 @@ config = {
 rcParams.update(config)
 
 from Chinese_logistic_regression import logistic_func_original as logistic_func_original
-from Chinese_control_group_logistic_regression_0 import logistic_func as logistic_func_control_0
-from Chinese_control_group_logistic_regression_1 import logistic_func as logistic_func_control_1
+from Chinese_logistic_regression_control_data_0 import logistic_func as logistic_func_control_0
+from Chinese_logistic_regression_control_data_1 import logistic_func as logistic_func_control_1
 
 
 def excess_risk_cal_plot(best_params_estimated: list,

@@ -2,7 +2,7 @@
 """
 @DATE: 2024-06-05 13:54:14
 @Author: Liu Hengjiang
-@File: examples\\NOISH_1998_studying-01_26\devirative_scheme_plot.py
+@File: examples\\NOISH_1998_studying-01_26\plot_devirative_scheme.py
 @Software: vscode
 @Description:
         概率曲线导数临界点示意图
@@ -32,8 +32,8 @@ rcParams.update(config)
 from staff_info import StaffInfo
 from diagnose_info.auditory_diagnose import AuditoryDiagnose
 from utils.data_helper import mark_group_name, filter_data
-from Chinese_control_group_logistic_regression_0 import logistic_func as logistic_func_control_0
-from Chinese_control_group_logistic_regression_1 import logistic_func as logistic_func_control_1
+from Chinese_logistic_regression_control_data_0 import logistic_func as logistic_func_control_0
+from Chinese_logistic_regression_control_data_1 import logistic_func as logistic_func_control_1
 
 
 def logistic_func(params, x):

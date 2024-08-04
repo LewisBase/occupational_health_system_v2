@@ -2,7 +2,7 @@
 """
 @DATE: 2024-06-07 14:56:17
 @Author: Liu Hengjiang
-@File: examples\\NOISH_1998_studying-01_26\\background_risk_compare_plot.py
+@File: examples\\NOISH_1998_studying-01_26\\plot_background_risk_compare.py
 @Software: vscode
 @Description:
         对比不同NIHL定义下Background Risk的变化曲线
@@ -110,24 +110,24 @@ if __name__ == "__main__":
     models_path = Path(args.models_path)
     pictures_path = Path(args.pictures_path)
 
-    # Chinese
-    control_params_estimated_1234, control_log_likelihood_value_1234 = pickle.load(
-        open(
-            models_path /
-            Path("NIHL1234_Y-Chinese_control_group_udlr_model_0.pkl"), "rb"))
-    control_params_estimated_346, control_log_likelihood_value_346 = pickle.load(
-        open(
-            models_path /
-            Path("NIHL346_Y-Chinese_control_group_udlr_model_0.pkl"), "rb"))
+    # # Chinese
+    # control_params_estimated_1234, control_log_likelihood_value_1234 = pickle.load(
+    #     open(
+    #         models_path /
+    #         Path("NIHL1234_Y-Chinese_control_group_udlr_model_0.pkl"), "rb"))
+    # control_params_estimated_346, control_log_likelihood_value_346 = pickle.load(
+    #     open(
+    #         models_path /
+    #         Path("NIHL346_Y-Chinese_control_group_udlr_model_0.pkl"), "rb"))
 
-    num_res = userdefine_logistic_regression_plot(
-        control_params_estimated_1234=control_params_estimated_1234,
-        control_params_estimated_346=control_params_estimated_346,
-        pictures_path=pictures_path,
-        picture_name="Fig3-Chinese",
-        picture_format="png",
-        dpi=100,
-        fig_title="Chinese Data")
+    # num_res = userdefine_logistic_regression_plot(
+    #     control_params_estimated_1234=control_params_estimated_1234,
+    #     control_params_estimated_346=control_params_estimated_346,
+    #     pictures_path=pictures_path,
+    #     picture_name="Fig3-Chinese",
+    #     picture_format="png",
+    #     dpi=100,
+    #     fig_title="Chinese Data")
 
     # NOISH data
     control_params_estimated_1234, control_log_likelihood_value_1234 = pickle.load(
@@ -143,67 +143,67 @@ if __name__ == "__main__":
         control_params_estimated_1234=control_params_estimated_1234,
         control_params_estimated_346=control_params_estimated_346,
         pictures_path=pictures_path,
-        picture_name="Fig3-NOISH",
+        picture_name="BackgroundRisk-NOISH",
         picture_format="png",
         dpi=100,
-        fig_title="NOISH Data")
+        fig_title="NOISH Control Group")
 
-    # Chinese data experiment + control
-    base_params_estimated_1234, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
-        open(
-            models_path /
-            Path("NIHL1234_Y-Chinese_total_group_udlr_model.pkl"), "rb"))
-    base_params_estimated_346, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
-        open(
-            models_path /
-            Path("NIHL346_Y-Chinese_total_group_udlr_model.pkl"), "rb"))
+    # # Chinese data experiment + control
+    # base_params_estimated_1234, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
+    #     open(
+    #         models_path /
+    #         Path("NIHL1234_Y-Chinese_total_group_udlr_model.pkl"), "rb"))
+    # base_params_estimated_346, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
+    #     open(
+    #         models_path /
+    #         Path("NIHL346_Y-Chinese_total_group_udlr_model.pkl"), "rb"))
 
-    num_res = userdefine_logistic_regression_plot(
-        control_params_estimated_1234=base_params_estimated_1234[:2],
-        control_params_estimated_346=base_params_estimated_346[:2],
-        pictures_path=pictures_path,
-        picture_name="Fig3-Chinese-total",
-        picture_format="png",
-        dpi=100,
-        fig_title="Chinese Total Data")
+    # num_res = userdefine_logistic_regression_plot(
+    #     control_params_estimated_1234=base_params_estimated_1234[:2],
+    #     control_params_estimated_346=base_params_estimated_346[:2],
+    #     pictures_path=pictures_path,
+    #     picture_name="Fig3-Chinese-total",
+    #     picture_format="png",
+    #     dpi=100,
+    #     fig_title="Chinese Total Data")
     
     
-    # NOISH data experiment + control
-    base_params_estimated_1234, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
-        open(
-            models_path /
-            Path("HL1234_Y-NOISH_total_group_udlr_model.pkl"), "rb"))
-    base_params_estimated_346, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
-        open(
-            models_path /
-            Path("HL346_Y-NOISH_total_group_udlr_model.pkl"), "rb"))
+    # # NOISH data experiment + control
+    # base_params_estimated_1234, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
+    #     open(
+    #         models_path /
+    #         Path("HL1234_Y-NOISH_total_group_udlr_model.pkl"), "rb"))
+    # base_params_estimated_346, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
+    #     open(
+    #         models_path /
+    #         Path("HL346_Y-NOISH_total_group_udlr_model.pkl"), "rb"))
 
-    num_res = userdefine_logistic_regression_plot(
-        control_params_estimated_1234=base_params_estimated_1234[:2],
-        control_params_estimated_346=base_params_estimated_346[:2],
-        pictures_path=pictures_path,
-        picture_name="Fig3-NOISH-total",
-        picture_format="png",
-        dpi=100,
-        fig_title="NOISH Total Data")
+    # num_res = userdefine_logistic_regression_plot(
+    #     control_params_estimated_1234=base_params_estimated_1234[:2],
+    #     control_params_estimated_346=base_params_estimated_346[:2],
+    #     pictures_path=pictures_path,
+    #     picture_name="Fig3-NOISH-total",
+    #     picture_format="png",
+    #     dpi=100,
+    #     fig_title="NOISH Total Data")
 
-    # Chinese+NOISH data control
-    base_params_estimated_1234, best_log_likelihood_value = pickle.load(
-        open(
-            models_path /
-            Path("HL1234_Y-Chinese_NOISH_control_group_udlr_model_0.pkl"), "rb"))
-    base_params_estimated_346, best_log_likelihood_value = pickle.load(
-        open(
-            models_path /
-            Path("HL346_Y-Chinese_NOISH_control_group_udlr_model_0.pkl"), "rb"))
+    # # Chinese+NOISH data control
+    # base_params_estimated_1234, best_log_likelihood_value = pickle.load(
+    #     open(
+    #         models_path /
+    #         Path("HL1234_Y-Chinese_NOISH_control_group_udlr_model_0.pkl"), "rb"))
+    # base_params_estimated_346, best_log_likelihood_value = pickle.load(
+    #     open(
+    #         models_path /
+    #         Path("HL346_Y-Chinese_NOISH_control_group_udlr_model_0.pkl"), "rb"))
 
-    num_res = userdefine_logistic_regression_plot(
-        control_params_estimated_1234=base_params_estimated_1234,
-        control_params_estimated_346=base_params_estimated_346,
-        pictures_path=pictures_path,
-        picture_name="Fig3-NOISH+Chinese-total",
-        picture_format="png",
-        dpi=100,
-        fig_title="Chinese+NOISH Control Data")
+    # num_res = userdefine_logistic_regression_plot(
+    #     control_params_estimated_1234=base_params_estimated_1234,
+    #     control_params_estimated_346=base_params_estimated_346,
+    #     pictures_path=pictures_path,
+    #     picture_name="Fig3-NOISH+Chinese-total",
+    #     picture_format="png",
+    #     dpi=100,
+    #     fig_title="Chinese+NOISH Control Data")
 
     print(1)

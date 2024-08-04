@@ -40,8 +40,8 @@ def userdefine_logistic_regression_Bootstrap_task(
     resample_df: pd.DataFrame,
     max_LAeq: float,
     params_init: list,
-    phi_range: list,
     L_control: float,
+    phi_range: list = None,
     y_col_name: str = "NIHL1234_Y",
     **kwargs,
 ):
@@ -62,15 +62,17 @@ def userdefine_logistic_regression_Bootstrap_task(
         "minimize_method", "Nelder-Mead"
     )  #"SLSQP", #"Powell", #"L-BFGS-B", #"Nelder-Mead", #"BFGS",
     minimize_options = kwargs.pop("minimize_options", {'maxiter': 10000})
-    minimize_bounds = kwargs.pop("minimize_bounds", ([None, None], [None, None], [1, 4], [4, 6], [6, 9]))
+    minimize_bounds = kwargs.pop(
+        "minimize_bounds",
+        ([None, None], [None, None], [1, 4], [4, 6], [6, 9]))
 
     log_likelihood_value = []
     params_estimated = []
     phi_estimated = []
     work_df = resample_df.copy()
     work_df = pd.get_dummies(work_df, columns=["duration_box_best"])
-    work_df["LAeq"] = work_df["LAeq"].apply(lambda x: (x - L_control) / (
-            max_LAeq - L_control) if x != 0 else 0)
+    work_df["LAeq"] = work_df["LAeq"].apply(
+        lambda x: (x - L_control) / (max_LAeq - L_control) if x != 0 else 0)
     work_df["duration_box_best_D-1"] *= work_df["LAeq"]
     work_df["duration_box_best_D-2"] *= work_df["LAeq"]
     work_df["duration_box_best_D-3"] *= work_df["LAeq"]
@@ -95,6 +97,8 @@ def userdefine_logistic_regression_Bootstrap_task(
                            method=minimize_method,
                            options=minimize_options,
                            bounds=minimize_bounds)
+        log_likelihood_value.append(results.fun)
+        params_estimated.append(results.x)
 
     best_log_likelihood_value = np.min(log_likelihood_value)
     best_params_estimated = params_estimated[np.argmin(log_likelihood_value)]
@@ -134,19 +138,33 @@ def bootstrap_estimates(data: pd.DataFrame,
                         base_L_control: float,
                         max_LAeq: int,
                         control_params_estimated: list,
+                        y_col_name: str,
                         n_iterations: int = 1000,
                         age: int = 30,
                         LAeq: np.array = np.arange(70, 100, 10),
-                        duration: np.array = np.array([1, 0, 0])):
+                        duration: np.array = np.array([1, 0, 0]),
+                        **kwargs):
+    minimize_method = kwargs.pop(
+        "minimize_method", "Nelder-Mead"
+    )  #"SLSQP", #"Powell", #"L-BFGS-B", #"Nelder-Mead", #"BFGS",
+    minimize_options = kwargs.pop("minimize_options", {'maxiter': 10000})
+    minimize_bounds = kwargs.pop(
+        "minimize_bounds",
+        ([None, None], [None, None], [1, 4], [4, 6], [6, 9]))
+
     estimates = []
     for i in tqdm(range(n_iterations)):
         resample_df = resample(data, replace=True, n_samples=data.shape[0])
         best_params_estimated, best_L_control, _ = userdefine_logistic_regression_Bootstrap_task(
             resample_df=resample_df,
             max_LAeq=max_LAeq,
-            params_init=base_params_estimated[:-1],
-            phi_range=[base_params_estimated[-1]],
-            L_control=base_L_control)
+            params_init=base_params_estimated,
+            # phi_range=[base_params_estimated[-1]],
+            L_control=base_L_control,
+            minimize_method=minimize_method,
+            minimize_options=minimize_options,
+            minimize_bounds=minimize_bounds,
+            y_col_name=y_col_name)
         LAeq_duration_matrix = np.tile(duration, (len(LAeq), 1)) * (
             (LAeq - best_L_control) /
             (max_LAeq - best_L_control))[:, np.newaxis]
@@ -164,14 +182,14 @@ def bootstrap_estimates(data: pd.DataFrame,
     return pd.DataFrame(estimates)
 
 
-def confidence_limit_plot(plot_df: pd.DataFrame, key_point_xs: list,
-                          age: int, duration: np.array,
-                          picture_path: Path, picture_name: str,
-                          picture_format: str, **kwargs):
+def confidence_limit_plot(plot_df: pd.DataFrame, key_point_xs: list, age: int,
+                          duration: np.array, picture_path: Path,
+                          picture_name: str, picture_format: str, **kwargs):
+    freq_col = kwargs.pop("freq_col", "NIHL1234_Y")
     dpi = kwargs.pop("dpi", 330)
     is_show = kwargs.pop("is_show", False)
     y_lim = kwargs.pop("y_lim", None)
-    
+
     if duration[0] == 1:
         duration_desp = "= 1~4"
     elif duration[1] == 1:
@@ -180,17 +198,23 @@ def confidence_limit_plot(plot_df: pd.DataFrame, key_point_xs: list,
         duration_desp = "> 10"
     else:
         raise ValueError
+    if freq_col == "NIHL1234_Y":
+        label_name = "$\\text{HL}_{1234}$"
+    elif freq_col == "NIHL346_Y":
+        label_name = "$\\text{HL}_{346}$"
+    else:
+        label_name = "$\\text{HL}$"
 
     fig, ax = plt.subplots(1, figsize=(6.5, 5), dpi=dpi)
-    ax.plot(plot_df.index, plot_df.excess_risk * 100, label="$\\text{HL}_{1234}$")
+    ax.plot(plot_df.index, plot_df.excess_risk * 100, label=f"{label_name}")
     ax.plot(plot_df.index,
             plot_df.lower_bounds * 100,
             linestyle="--",
-            label="$\\text{NIHL}_{1234}$ lower limit")
+            label=f"{label_name} lower limit")
     ax.plot(plot_df.index,
             plot_df.upper_bounds * 100,
             linestyle="-.",
-            label="$\\text{NIHL}_{1234}$ upper limit")
+            label=f"{label_name} upper limit")
     x_min, x_max = ax.get_xlim()
     if y_lim:
         y_min, y_max = y_lim
@@ -216,7 +240,7 @@ def confidence_limit_plot(plot_df: pd.DataFrame, key_point_xs: list,
     ax.set_xlabel("$L_{Aeq,8h}$ (dBA)")
     ax.set_title(f"Age = {age}, Duration {duration_desp}")
 
-    plt.legend(loc="best")
+    plt.legend(loc="upper left")
     plt.tight_layout()
     picture_path = Path(picture_path) / f"{picture_name}.{picture_format}"
     plt.savefig(picture_path, format=picture_format, dpi=dpi)
@@ -229,16 +253,19 @@ if __name__ == "__main__":
     import warnings
     warnings.filterwarnings("ignore")
     from datetime import datetime
-    logger.add(f"./log/Chinese_logistic_regression_Bootstrap-{datetime.now().strftime('%Y-%m-%d')}.log",level="INFO")
-    
+    logger.add(
+        f"./log/Chinese_logistic_regression_Bootstrap-{datetime.now().strftime('%Y-%m-%d')}.log",
+        level="INFO")
 
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_path",
-                        type=str,
-                        default="./cache/Chinese_extract_experiment_df_average_freq.csv")
-                        # default="./cache/Chinese_extract_experiment_classifier_df.csv")
-    parser.add_argument("--task", type=str, default="analysis")
+    parser.add_argument(
+        "--input_path",
+        type=str,
+        default="./cache/Chinese_extract_experiment_df_average_freq.csv")
+    # default="./cache/Chinese_extract_experiment_classifier_df.csv")
+    # parser.add_argument("--task", type=str, default="analysis")
+    parser.add_argument("--task", type=str, default="plot")
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--models_path", type=str, default="./models")
     parser.add_argument("--pictures_path", type=str, default="./pictures")
@@ -267,26 +294,34 @@ if __name__ == "__main__":
         extract_df["duration_box_best"] = extract_df["duration"].apply(
             lambda x: mark_group_name(x, qcut_set=duration_cut, prefix="D-"))
 
-        # 使用Chinese实验组全部数据
-        ## NIHL1234_Y
+        freq_col = "NIHL1234_Y"
+        # freq_col = "NIHL346_Y"
+
+        # age = 30
+        # duration = np.array([0, 1, 0])
+        # age = 45 
+        # duration = np.array([0, 1, 0])
+        # age = 45
+        # duration = np.array([0, 0, 1])
+        age = 65
+        duration = np.array([0, 0, 1])
+
         fit_df = extract_df.query(
             "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
-                "age", "LAeq", "duration_box_best", "NIHL1234_Y"
+                "age", "LAeq", "duration_box_best", freq_col
             ]]
         base_params_estimated, base_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
             open(
-                models_path /
-                Path("NIHL1234_Y-Chinese_experiment_group_udlr_model_average_freq.pkl"), "rb"))
+                models_path / Path(
+                    f"{freq_col}-Chinese_experiment_group_udlr_model_average_freq.pkl"
+                ), "rb"))
         control_params_estimated, control_log_likelihood_value = pickle.load(
             open(
                 models_path /
-                Path("NIHL1234_Y-Chinese_control_group_udlr_model_0_average_freq.pkl"), "rb"))
-        
-
-        age = 65 
-        duration = np.array([0, 0, 1])
-        # base_params_estimated = [-5.05, 0.08, 2.66, 3.98, 6.42, 3.4]
-        # base_L_control = 73
+                Path(f"{freq_col[2:]}-NOISH_control_group_udlr_model_0.pkl"),
+                "rb"))
+        # base_params_estimated = [-4.99, 0.08, 8.0791, 8.9607, 9.9687, 3.0]
+        # base_L_control = 60
 
         excess_risk_value = get_excess_risk(
             base_params_estimated=base_params_estimated,
@@ -294,7 +329,7 @@ if __name__ == "__main__":
             max_LAeq=max_LAeq,
             control_params_estimated=control_params_estimated,
             age=age,
-            LAeq=np.arange(70, 101),
+            LAeq=np.arange(60, 101),
             duration=duration)
         estimates = bootstrap_estimates(
             data=fit_df,
@@ -302,10 +337,13 @@ if __name__ == "__main__":
             base_L_control=base_L_control,
             max_LAeq=max_LAeq,
             control_params_estimated=control_params_estimated,
+            y_col_name=freq_col,
             n_iterations=1000,
             age=age,
-            LAeq=np.arange(70, 101),
-            duration=duration)
+            LAeq=np.arange(60, 101),
+            duration=duration,
+            minimize_bounds=([-5.50, -4.99], [0.07, 0.08], [None, None],
+                             [None, None], [None, None], [1, 3]))
 
         confidence_res = pd.DataFrame()
         confidence_res["excess_risk"] = excess_risk_value
@@ -314,13 +352,38 @@ if __name__ == "__main__":
         confidence_res["upper_bounds"] = estimates.apply(
             lambda x: np.percentile(x, 95))
 
-        confidence_limit_plot(plot_df=confidence_res,
-                              key_point_xs=[80, 85, 90, 95, 100],
-                              age=age,
-                              duration=duration,
-                              picture_path=pictures_path,
-                              picture_name=f"Chinese_conf_limit_average_freq-{age}",
-                              picture_format="png",
-                              dpi=100)
-                            #   y_lim = [-1, 85])
-        print(1)
+        confidence_res.to_csv(
+            output_path /
+            f"{freq_col[:-2]}-Chinese_conf_limit_{age}-{str(duration[-1])}.csv",
+            header=True,
+            index=True)
+
+    if task == "plot":
+        freq_col = "NIHL1234_Y"
+        # freq_col = "NIHL346_Y"
+        
+        # age = 30
+        # duration = np.array([0, 1, 0])
+        # age = 45 
+        # duration = np.array([0, 1, 0])
+        # age = 45
+        # duration = np.array([0, 0, 1])
+        age = 65
+        duration = np.array([0, 0, 1])
+
+        confidence_res = pd.read_csv(
+            output_path / f"{freq_col[:-2]}-Chinese_conf_limit_{age}-{str(duration[-1])}.csv",
+            header=0, index_col=0)
+        confidence_limit_plot(
+            plot_df=confidence_res,
+            key_point_xs=[80, 85, 90, 95, 100],
+            age=age,
+            duration=duration,
+            picture_path=pictures_path,
+            picture_name=
+            f"{freq_col[:-2]}-Chinese_conf_limit_{age}-{str(duration[-1])}",
+            picture_format="png",
+            dpi=100,
+            freq_col=freq_col,
+            y_lim=[-2, 60])
+    print(1)

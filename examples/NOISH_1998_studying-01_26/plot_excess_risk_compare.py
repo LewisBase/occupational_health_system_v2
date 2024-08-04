@@ -2,7 +2,7 @@
 """
 @DATE: 2024-06-11 15:39:49
 @Author: Liu Hengjiang
-@File: examples\\NOISH_1998_studying-01_26\excess_risk_compare_plot.py
+@File: examples\\NOISH_1998_studying-01_26\plot_excess_risk_compare.py
 @Software: vscode
 @Description:
         对比不同NIHL定义及人群分组下Excess Risk的变化曲线

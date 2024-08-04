@@ -2,7 +2,7 @@
 """
 @DATE: 2024-05-20 15:45:33
 @Author: Liu Hengjiang
-@File: examples\\NOISH_1998_studying-01_26\\Chinese_all_data_statistic_plot.py
+@File: examples\\NOISH_1998_studying-01_26\\plot_Chinese_all_data_statistic.py
 @Software: vscode
 @Description:
         对中国数据中实验组与对照组进行不同维度上的统计并作图
