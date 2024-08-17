@@ -264,10 +264,13 @@ def userdefine_logistic_regression_plot(best_params_estimated,
     else:
         raise ValueError
     if freq_col == "NIHL1234_Y":
+        # label_name = "$HL_{1234}$"
         label_name = "$\\text{HL}_{1234}$"
     elif freq_col == "NIHL346_Y":
+        # label_name = "$HL_{346}$"
         label_name = "$\\text{HL}_{346}$"
     else:
+        # label_name = "$HL$"
         label_name = "$\\text{HL}$"
         
     logger.info(f"Params: {best_params_estimated}")
@@ -652,8 +655,8 @@ if __name__ == "__main__":
 
         # data type convert
         duration_cut = [0, 4, 10, np.inf]
-        kurtosis_arimean_cut = [0, 10, np.inf]
-        kurtosis_geomean_cut = [0, 6, np.inf]
+        kurtosis_arimean_cut = [3, 10, 50, np.inf]
+        kurtosis_geomean_cut = [3, 8, 20, np.inf]
         extract_df["duration_box_best"] = extract_df["duration"].apply(
             lambda x: mark_group_name(x, qcut_set=duration_cut, prefix="D-"))
         extract_df["kurtosis_arimean_box"] = extract_df[
@@ -664,76 +667,123 @@ if __name__ == "__main__":
                 x, qcut_set=kurtosis_geomean_cut, prefix="KG-"))
 
         # 使用全部数据
-        ## NIHL1234_Y
-        max_LAeq = extract_df["LAeq"].max()
-        fit_df = extract_df.query(
-            "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
-                "age", "LAeq", "duration_box_best", "NIHL1234_Y"
-            ]]
-        userdefine_logistic_regression_task(
-            fit_df=fit_df,
-            max_LAeq=max_LAeq,
-            models_path=models_path,
-            model_name="Chinese_experiment_group_udlr_model_average_freq.pkl",
-            y_col_name="NIHL1234_Y",
-            params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
-            L_control_range=np.arange(60, 79),
-            # phi_range=[1,2,3],
-            minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[1, 3]))
+        # ## NIHL1234_Y
+        # max_LAeq = extract_df["LAeq"].max()
+        # fit_df = extract_df.query(
+        #     "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
+        #         "age", "LAeq", "duration_box_best", "NIHL1234_Y"
+        #     ]]
+        # userdefine_logistic_regression_task(
+        #     fit_df=fit_df,
+        #     max_LAeq=max_LAeq,
+        #     models_path=models_path,
+        #     model_name="Chinese_experiment_group_udlr_model_average_freq.pkl",
+        #     y_col_name="NIHL1234_Y",
+        #     params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
+        #     L_control_range=np.arange(60, 79),
+        #     # phi_range=[1,2,3],
+        #     minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[1, 3]))
+        ### KG-groups
+        KG_group = "KG-1"
+        # KG_group = "KG-2"
+        # KG_group = "KG-3"
+        for KG_group in ["KG-1", "KG-2", "KG-3"]:
+            max_LAeq = extract_df["LAeq"].max()
+            fit_df = extract_df.query(
+                f"duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean_box == @KG_group")[[
+                    "age", "LAeq", "duration_box_best", "NIHL1234_Y"
+                ]]
+            userdefine_logistic_regression_task(
+                fit_df=fit_df,
+                max_LAeq=max_LAeq,
+                models_path=models_path,
+                model_name=f"{KG_group}-Chinese_experiment_group_udlr_model_average_freq.pkl",
+                y_col_name="NIHL1234_Y",
+                params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
+                L_control_range=np.arange(60, 79),
+                # phi_range=[1,2,3],
+                minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[1, 3]))
         ## NIHL346_Y
-        max_LAeq = extract_df["LAeq"].max()
-        fit_df = extract_df.query(
-            "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
-                "age", "LAeq", "duration_box_best", "NIHL346_Y"
-            ]]
-        userdefine_logistic_regression_task(
-            fit_df=fit_df,
-            max_LAeq=max_LAeq,
-            models_path=models_path,
-            model_name="Chinese_experiment_group_udlr_model_average_freq.pkl",
-            y_col_name="NIHL346_Y",
-            params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
-            L_control_range=np.arange(60, 79),
-            # phi_range=[1,2,3,4,5],
-            minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[1, 3]))
+        # max_LAeq = extract_df["LAeq"].max()
+        # fit_df = extract_df.query(
+        #     "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
+        #         "age", "LAeq", "duration_box_best", "NIHL346_Y"
+        #     ]]
+        # userdefine_logistic_regression_task(
+        #     fit_df=fit_df,
+        #     max_LAeq=max_LAeq,
+        #     models_path=models_path,
+        #     model_name="Chinese_experiment_group_udlr_model_average_freq.pkl",
+        #     y_col_name="NIHL346_Y",
+        #     params_init=[-5.36, 0.08, 7.66, 8.98, 9.42, 3],
+        #     L_control_range=np.arange(60, 79),
+        #     # phi_range=[1,2,3,4,5],
+        #     minimize_bounds = ([None,None],[None,None],[4.5, 8.9],[5.5,9.9],[6.5, 10.9],[1, 3]))
 
 ################################################################################################################################
     if task == "plot":
         freq_col = "NIHL1234_Y"
         # freq_col = "NIHL346_Y"
 
-        age = 30
-        duration = np.array([0, 1, 0])
+        # KG_group = "KG-1"
+        KG_group = "KG-2"
+        # KG_group = "KG-3"
+
+        # age = 30
+        # duration = np.array([0, 1, 0])
         # age = 45 
         # duration = np.array([0, 1, 0])
         # age = 45
         # duration = np.array([0, 0, 1])
-        # age = 65
-        # duration = np.array([0, 0, 1])
-        
-        best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
-            open(
-                models_path /
-                Path(f"{freq_col}-Chinese_experiment_group_udlr_model_average_freq.pkl"),
-                "rb"))
+        age = 65
+        duration = np.array([0, 0, 1])
+
         control_params_estimated, control_log_likelihood_value = pickle.load(
-            open(
-                models_path /
-                Path(f"{freq_col[2:]}-NOISH_control_group_udlr_model_0.pkl"),
-                "rb"))
+                    open(
+                        models_path /
+                        Path(f"{freq_col[2:]}-NOISH_control_group_udlr_model_0.pkl"),
+                        "rb"))
         
-        num_res = userdefine_logistic_regression_plot(
-            best_params_estimated=best_params_estimated,
-            best_L_control=best_L_control,
-            max_LAeq=max_LAeq,
-            picture_path=pictures_path,
-            picture_name=f"{freq_col[:-2]}-Chinese_experiment_excess_risk_{age}-{str(duration[-1])}",
-            picture_format="png",
-            LAeq=np.arange(60, 101),
-            age=age,
-            duration=duration,
-            point_type="2nd",
-            control_params_estimated=control_params_estimated,
-            y_lim=[-2, 60])
+        if KG_group:
+            for KG_group in ["KG-1", "KG-2", "KG-3"]:
+                best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
+                    open(
+                        models_path /
+                        Path(f"{freq_col}-{KG_group}-Chinese_experiment_group_udlr_model_average_freq.pkl"),
+                        "rb"))
+                num_res = userdefine_logistic_regression_plot(
+                    best_params_estimated=best_params_estimated,
+                    best_L_control=best_L_control,
+                    max_LAeq=max_LAeq,
+                    picture_path=pictures_path,
+                    picture_name=f"{freq_col[:-2]}-{KG_group}-Chinese_experiment_excess_risk_{age}-{str(duration[-1])}",
+                    picture_format="png",
+                    LAeq=np.arange(60, 101),
+                    age=age,
+                    duration=duration,
+                    point_type="2nd",
+                    control_params_estimated=control_params_estimated,
+                    y_lim=[-2, 60],
+                    freq_col=freq_col)
+        else:
+            best_params_estimated, best_L_control, max_LAeq, best_log_likelihood_value = pickle.load(
+                open(
+                    models_path /
+                    Path(f"{freq_col}-Chinese_experiment_group_udlr_model_average_freq.pkl"),
+                    "rb"))
+            num_res = userdefine_logistic_regression_plot(
+                best_params_estimated=best_params_estimated,
+                best_L_control=best_L_control,
+                max_LAeq=max_LAeq,
+                picture_path=pictures_path,
+                picture_name=f"{freq_col[:-2]}-Chinese_experiment_excess_risk_{age}-{str(duration[-1])}",
+                picture_format="png",
+                LAeq=np.arange(60, 101),
+                age=age,
+                duration=duration,
+                point_type="2nd",
+                control_params_estimated=control_params_estimated,
+                y_lim=[-2, 60],
+                freq_col=freq_col)
 
     print(1)
