@@ -22,11 +22,27 @@ from pandarallel import pandarallel
 from utils.database_helper import load_data_from_table, create_table_from_df
 
 
+# def extract_diagnoise_res(dataframe):
+#     diagnoise_dict = {
+#         "上岗前职业健康检查": {"职业禁忌证"},
+#         "在岗期间职业健康检查": {"职业禁忌证", "疑似职业病", "复查"},
+#         "离岗时职业健康检查":{"疑似职业病", "复查", "职业禁忌证"},
+#         "离岗后健康检查": {"疑似职业病", "复查", "职业禁忌证"},
+#         "应急健康检查": {"疑似职业病", "复查", "职业禁忌证"}
+#     }
+#     from functional import seq
+#     exam_conclusion = dataframe["physical_exam_conclusion"]
+#     exam_type = dataframe["physical_exam_type"]
+#     set_res = seq(exam_conclusion.str.split(";")).map(lambda x: seq(x).map(lambda y: y.split("_")[1]).set())
+#     # 根据健康检查类型判断，健康检查结果与标准有交集即为True
+#     res = seq(zip(exam_type, set_res)).map(lambda x : x[1] & diagnoise_dict.get(x[0])).list()
+#     # res = False if set_res.issubset({"目前未见异常","其他疾病或异常"}) else True
+#     return res
 def extract_diagnoise_res(x):
     from functional import seq
     set_res = seq(x.split(";")).map(lambda x: x.split("_")[1]).set()
-    res = False if set_res.issubset({"目前未见异常","复查"}) else True
-    return res
+    return set_res
+
 
 def extract_hazard_res(x):
     from functional import seq
@@ -53,7 +69,7 @@ if __name__ == "__main__":
     database_path = Path(args.database_path)
     input_table = args.input_table
     output_path = Path(args.output_path)
-    
+
     if not output_path.exists():
         output_path.mkdir(parents=True)
 
@@ -61,7 +77,8 @@ if __name__ == "__main__":
 
     columns_names = [
         "id", "report_card_id", "organization_city",
-        "physical_exam_conclusion", "report_issue_date"
+        "organization_industry_type", "organization_unified_social_credit_id",
+        "physical_exam_type", "physical_exam_conclusion", "report_issue_date"
     ]
     filter_condition = {"organization_province": "浙江省"}
     limit_size = 0
@@ -75,24 +92,33 @@ if __name__ == "__main__":
     #Data Size: (1712289, 5)
 
     # drop the line without date
-    init_df.dropna(subset=["report_issue_date","physical_exam_conclusion"], inplace=True)
-    
+    init_df.dropna(subset=["report_issue_date", "physical_exam_conclusion"],
+                   inplace=True)
+
+    # init_df["diagnoise_res"] = extract_diagnoise_res(init_df)
     init_df["diagnoise_res"] = init_df[
         "physical_exam_conclusion"].parallel_apply(extract_diagnoise_res)
-    init_df["hazard_num"] = init_df[
-        "physical_exam_conclusion"].parallel_apply(extract_hazard_res)
+    init_df["hazard_res"] = init_df["physical_exam_conclusion"].parallel_apply(
+        extract_hazard_res)
     init_df["report_issue_date"] = pd.to_datetime(init_df["report_issue_date"])
-    # init_df["year"] = pd.to_datetime(init_df["report_issue_date"]).dt.year
-    # init_df["month"] = pd.to_datetime(init_df["report_issue_date"]).dt.month
-    # init_df["year_month"] = init_df["year"].astype(str) + "-" + init_df["month"].astype(str)
-    # groupby_df = init_df.groupby(["organization_city", "year_month"])["diagnoise_res"].sum().to_frame().reset_index()
-    diagnoise_groupby_df = pd.DataFrame()
-    diagnoise_groupby_df["exam_num"] = init_df.groupby(["organization_city", "report_issue_date"])["diagnoise_res"].size()
-    diagnoise_groupby_df["diagnoise_num"] = init_df.groupby(["organization_city", "report_issue_date"])["diagnoise_res"].sum()
-    diagnoise_groupby_df.reset_index(inplace=True)
-    diagnoise_groupby_df.to_csv(output_path/"diagnoise_time_series_data.csv", header=True, index=False, encoding="utf-8-sig")
-    
-    hazard_groupby_df = init_df.groupby(["organization_city", "report_issue_date"])["hazard_num"].apply(lambda x: x.explode().value_counts()).to_frame().reset_index()
-    hazard_groupby_df.rename(columns={"level_2":"hazard_type"}, inplace=True)
-    hazard_groupby_df.to_csv(output_path/"hazard_time_series_data.csv", header=True, index=False, encoding="utf-8-sig")
+    diagnoise_groupby_df = init_df.groupby(
+        ["organization_city", "report_issue_date",
+         "physical_exam_type"])["diagnoise_res"].apply(
+             lambda x: x.explode().value_counts()).to_frame().reset_index()
+    diagnoise_groupby_df.rename(columns={"level_3": "diagnoise_type"},
+                                inplace=True)
+    diagnoise_groupby_df.to_csv(output_path / "diagnoise_time_series_data.csv",
+                                header=True,
+                                index=False,
+                                encoding="utf-8-sig")
+
+    hazard_groupby_df = init_df.groupby([
+        "organization_city", "report_issue_date", "organization_industry_type"
+    ])["hazard_res"].apply(
+        lambda x: x.explode().value_counts()).to_frame().reset_index()
+    hazard_groupby_df.rename(columns={"level_3": "hazard_type"}, inplace=True)
+    hazard_groupby_df.to_csv(output_path / "hazard_time_series_data.csv",
+                             header=True,
+                             index=False,
+                             encoding="utf-8-sig")
     print(1)

@@ -23,19 +23,55 @@ from loguru import logger
 
 from utils.data_helper import timeseries_train_test_split
 
-CITY_NAMES= {
-        "杭州市": "Hangzhou",
-        "丽水市": "Lishui",
-        "温州市": "Wenzhou",
-        "绍兴市": "Shaoxing",
-        "舟山市": "Zhoushan",
-        "宁波市": "Ningbo",
-        "衢州市": "Quzhou",
-        "嘉兴市": "Jiaxing",
-        "金华市": "Jinhua",
-        "台州市": "Taizhou",
-        "湖州市": "Huzhou"
-    }
+from matplotlib.font_manager import FontProperties
+from matplotlib import rcParams
+
+config = {
+    "font.family": "serif",
+    "font.size": 12,
+    "mathtext.fontset":
+    "stix",  # matplotlib渲染数学字体时使用的字体，和Times New Roman差别不大
+    "font.serif": ["STZhongsong"],  # 华文中宋
+    "axes.unicode_minus": False  # 处理负号，即-号
+}
+rcParams.update(config)
+    
+
+CITY_NAMES = {
+    "杭州市": "Hangzhou",
+    "丽水市": "Lishui",
+    "温州市": "Wenzhou",
+    "绍兴市": "Shaoxing",
+    "舟山市": "Zhoushan",
+    "宁波市": "Ningbo",
+    "衢州市": "Quzhou",
+    "嘉兴市": "Jiaxing",
+    "金华市": "Jinhua",
+    "台州市": "Taizhou",
+    "湖州市": "Huzhou"
+}
+
+EXAM_TYPE_NAMES = {
+    "上岗前职业健康检查": "pre_work",
+    "在岗期间职业健康检查": "on_work",
+    "离岗时职业健康检查": "off_work",
+    "离岗后健康检查": "after_work",
+    "应急健康检查": "emergency",
+}
+
+DIAGNOISE_TYPE_NAMES = {
+    "职业禁忌证": "occupational_contraindication",
+    "疑似职业病": "suspected_occupational_disease",
+    "复查": "reexamination"
+}
+
+DIAGNOISE_TYPE_DICTS = {
+    "上岗前职业健康检查": ["职业禁忌证"],
+    "在岗期间职业健康检查": ["职业禁忌证", "疑似职业病", "复查"],
+    "离岗时职业健康检查": ["疑似职业病", "复查"],
+    "离岗后健康检查": ["疑似职业病", "复查"],
+    "应急健康检查": ["疑似职业病", "复查"]
+}
 
 
 def prophet_model(train_X, train_y, **kwargs):
@@ -45,8 +81,8 @@ def prophet_model(train_X, train_y, **kwargs):
     weekly_seasonality = kwargs.get("weekly_seasonality", True)
 
     df = pd.DataFrame({
-        'ds': train_X,
-        'y': train_y,
+        'ds': train_X.values,
+        'y': train_y.values,
     })
     m = Prophet(
         changepoint_prior_scale=changepoint_prior_scale,
@@ -64,58 +100,74 @@ def prophet_model(train_X, train_y, **kwargs):
     return m
 
 
-def plot_forecast_res(model,
-                      fcst,
-                      test_X,
-                      test_y,
-                      title,
-                      xlabel='date',
-                      ylabel='y',
-                      uncertainty=True,
-                      plot_cap=True,
+def plot_forecast_res(models_path,
+                      output_path,
+                      pictures_path,
+                      city: str = "杭州市",
+                      exam_type: str = "在岗期间职业健康检查",
+                      future_periods: int = 180,
+                      xlabel="日期",
+                      ylabel="人数",
                       **kwargs):
+    data = pd.read_csv(output_path / 
+                       f"{CITY_NAMES.get(city)}-exam_{EXAM_TYPE_NAMES.get(exam_type)}-data.csv",
+                       parse_dates=["report_issue_date"],
+                       header=0, index_col="report_issue_date")
+    try:
+        data_train = data.query("data_type == 'train'").resample("W").sum()
+        data_test = data.query("data_type == 'test'").resample("W").sum()
+    except:
+        raise ValueError("数据量太少，无法进行建模")
+    
+    model_pred_dict = {}
+    for col in data.columns.drop("data_type"):
+        model = pickle.load(
+        open(
+            models_path /
+            f"{CITY_NAMES.get(city)}-exam_{EXAM_TYPE_NAMES.get(exam_type)}-diagnoise_{DIAGNOISE_TYPE_NAMES.get(col, col)}-model.pkl",
+            "rb"))
+        future = model.make_future_dataframe(
+            periods=future_periods,
+            freq='D')  #预测时长
+        fcst = model.predict(future)
+        fcst.index = fcst['ds'].dt.to_pydatetime()
+        model_pred_dict[col] = fcst.resample("W").sum()
+    #     # fig_res.savefig(pictures_path /
+    #     #                 f"{CITY_NAMES.get(city)}-exam_{EXAM_TYPE_NAMES.get(exam_type)}-diagnoise_{DIAGNOISE_TYPE_NAMES.get(col)}-res.png")
+    #     plt.close(fig=fig_res)
+    
+    
+    fcst_base = model_pred_dict["exam_nums"]
     fig, ax = plt.subplots(1, figsize=(10, 4))
-    fcst_t = fcst['ds'].dt.to_pydatetime()
-    forecast_y = fcst[fcst["ds"].isin(test_X)]["yhat"]
-    rmse = mean_squared_error(test_y, forecast_y)
-    mape = mean_absolute_percentage_error(test_y, forecast_y)
-    ax.plot(model.history['ds'].dt.to_pydatetime(),
-            model.history['y'],
-            'k.',
-            label='历史观测数据（训练）')
-    ax.plot(test_X.dt.to_pydatetime(), test_y, 'r.', label='历史观测数据（测试）')
-    ax.plot(fcst_t, fcst['yhat'], ls='-', c='#0072B2', label='模型预测结果')
-    if 'cap' in fcst and plot_cap:
-        ax.plot(fcst_t, fcst['cap'], ls='--', c='k')
-    if model.logistic_floor and 'floor' in fcst and plot_cap:
-        ax.plot(fcst_t, fcst['floor'], ls='--', c='k')
-    if uncertainty and model.uncertainty_samples:
-        ax.fill_between(fcst_t,
-                        fcst['yhat_lower'],
-                        fcst['yhat_upper'],
-                        color='#0072B2',
-                        alpha=0.2)
-    ax.annotate(
-        text=f"RMSE={round(rmse,2)}\nMAPE={round(mape,2)}",
-        xy=(0.5, 0.8),
-        xycoords='axes fraction',
-        xytext=(0.5, 0.8),
-        textcoords='axes fraction',
-    )
+    ax.plot(data_train.index,
+            data_train["exam_nums"],
+            "k.",
+            label="历史观测数据（训练）")
+    ax.plot(data_test.index, data_test["exam_nums"], "r.", label="历史观测数据（测试）")
+    ax.plot(fcst_base.index, fcst_base["yhat"], ls="-", c="#0072B2", label="模型预测结果")
+    ax.fill_between(fcst_base.index,
+                    fcst_base["yhat_lower"],
+                    fcst_base["yhat_upper"],
+                    color="#0072B2",
+                    alpha=0.2)
+    ax2 = ax.twinx()
+    
     locator = AutoDateLocator(interval_multiples=False)
     formatter = AutoDateFormatter(locator)
     ax.xaxis.set_major_locator(locator)
     ax.xaxis.set_major_formatter(formatter)
-    ax.grid(True, which='major', c='gray', ls='-', lw=1, alpha=0.2)
+    ax.grid(True, which="major", c="gray", ls="-", lw=1, alpha=0.2)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.set_title(title)
+    ax.set_title(f"{city}-{exam_type}监控情况及未来趋势")
     ax.legend()
     fig.tight_layout()
+    plt.show()
     return fig
 
 
-def step(input_path, pictures_path, models_path, task, plot_types):
+def train_step(input_path, models_path, output_path):
+
     diagnoise_input_df = pd.read_csv(input_path /
                                      "diagnoise_time_series_data.csv",
                                      header=0)
@@ -124,86 +176,80 @@ def step(input_path, pictures_path, models_path, task, plot_types):
     diagnoise_input_df.sort_values(by="report_issue_date",
                                    ascending=True,
                                    inplace=True)
-    hazard_input_df = pd.read_csv(input_path / "hazard_time_series_data.csv",
-                                  header=0)
-    hazard_input_df["report_issue_date"] = pd.to_datetime(
-        hazard_input_df["report_issue_date"])
-    hazard_input_df.sort_values(by="report_issue_date",
-                                ascending=True,
-                                inplace=True)
+    # hazard_input_df = pd.read_csv(input_path / "hazard_time_series_data.csv",
+    #                               header=0)
+    # hazard_input_df["report_issue_date"] = pd.to_datetime(
+    #     hazard_input_df["report_issue_date"])
+    # hazard_input_df.sort_values(by="report_issue_date",
+    #                             ascending=True,
+    #                             inplace=True)
 
-    top10_hazard_info = {}
-    for city in diagnoise_input_df["organization_city"].drop_duplicates():
-        logger.info(f"Start to analysis the data in city: {city}")
-        hazard_sub_df = hazard_input_df[hazard_input_df["organization_city"] ==
-                                        city]
-        top10_hazard_prop = hazard_sub_df.groupby("hazard_type")["hazard_num"].sum().to_frame()
-        top10_hazard_prop["hazard_prop"] = top10_hazard_prop["hazard_num"] / top10_hazard_prop["hazard_num"].sum()
-        top10_hazard_dict = top10_hazard_prop.sort_values(by="hazard_prop", ascending=False)["hazard_prop"].head(10).to_dict()
-        top10_hazard_info[city] = top10_hazard_dict
+    city_list = diagnoise_input_df["organization_city"].drop_duplicates()
+    
+    for city in city_list:
+        logger.info(f"Start to process the data in city: {city}")
+        diagnoise_sub_city_df = diagnoise_input_df.query("organization_city == @city")
+        physical_exam_type_list = diagnoise_sub_city_df["physical_exam_type"].drop_duplicates()
+        for exam_type in physical_exam_type_list:
+            logger.info(f"Start to process the data in exam type: {exam_type}")
+            diagnoise_sub_df = diagnoise_sub_city_df.query("physical_exam_type == @exam_type")
+            # 统计城市-体检类型下参加职业健康检查的人数
+            diagnoise_timeseries_sub_df = diagnoise_sub_df.groupby(
+                ["report_issue_date"]).sum()
+            diagnoise_timeseries_sub_df.rename(
+                columns={"diagnoise_res": "exam_nums"}, inplace=True)
 
-        diagnoise_sub_df = diagnoise_input_df[
-            diagnoise_input_df["organization_city"] == city]
-        train_X, test_X, train_y, test_y = timeseries_train_test_split(
-            X=diagnoise_sub_df["report_issue_date"],
-            y=diagnoise_sub_df[["exam_num", "diagnoise_num"]],
-            train_size=0.8)
-        for col in train_y.columns:
-            logger.info(f"Start to analysis the {col} data")
-            if task == "train":
-                model = prophet_model(train_X=train_X, train_y=train_y[col])
-                pickle.dump(
-                    model,
-                    open(models_path / f"{CITY_NAMES.get(city)}-diagnoise-{col}-model.pkl",
-                         "wb"))
+            # 统计城市-体检类型下职业健康体检结果为规定需要关注类型的人数
+            diagnoise_type_list = DIAGNOISE_TYPE_DICTS.get(exam_type)
+            for diagnoise_type in diagnoise_type_list:
+                diagnoise_num_series = diagnoise_sub_df.query(
+                    "diagnoise_type == @diagnoise_type").groupby(
+                        ["report_issue_date"]).sum()["diagnoise_res"]
+                diagnoise_timeseries_sub_df = diagnoise_timeseries_sub_df.join(
+                    diagnoise_num_series, how="left").fillna(0)
+                diagnoise_timeseries_sub_df.rename(
+                    columns={"diagnoise_res": diagnoise_type}, inplace=True)
+
+            # 训练时间序列模型
+            if diagnoise_timeseries_sub_df.shape[0] > 10:
+                train_X, test_X, train_y, test_y = timeseries_train_test_split(
+                    X=pd.Series(diagnoise_timeseries_sub_df.index),
+                    y=diagnoise_timeseries_sub_df,
+                    train_size=0.8)
+                for col in train_y.columns:
+                    logger.info(f"Start to analysis the {col} data")
+                    model = prophet_model(train_X=train_X,
+                                          train_y=train_y[col])
+                    pickle.dump(
+                        model,
+                        open(
+                            models_path /
+                            f"{CITY_NAMES.get(city)}-exam_{EXAM_TYPE_NAMES.get(exam_type)}-diagnoise_{DIAGNOISE_TYPE_NAMES.get(col, col)}-model.pkl",
+                            "wb"))
+                train_y["data_type"] = "train"
+                test_y["data_type"] = "test"
+                diagnoise_timeseries_output_df = pd.concat([train_y, test_y])
             else:
-                model = pickle.load(
-                    open(models_path / f"{CITY_NAMES.get(city)}-diagnoise-{col}-model.pkl",
-                         "rb"))
-            future = model.make_future_dataframe(
-                periods=(test_X.iloc[-1] - test_X.iloc[0]).days + 1,
-                freq='D')  #预测时长
-            forecast = model.predict(future)
-            if "comp" in plot_types:
-                fig_comp = model.plot_components(forecast)
-                fig_comp.savefig(pictures_path /
-                                 f"{city}-diagnoise-{col}_comp.png")
-                plt.close(fig=fig_comp)
-            if "res" in plot_types:
-                fig_res = plot_forecast_res(model=model,
-                                            fcst=forecast,
-                                            test_X=test_X,
-                                            test_y=test_y[col],
-                                            ylabel=col,
-                                            title=city)
-                # fig_res.savefig(pictures_path /
-                #                 f"{city}-diagnoise-{col}_res.png")
-                plt.close(fig=fig_res)
-    pickle.dump(top10_hazard_info, open(models_path / "top10_hazard_info.pkl", "wb"))
+                logger.warning(f"{city}-{exam_type}数据量少于十条")
+                diagnoise_timeseries_output_df = diagnoise_timeseries_sub_df
+            diagnoise_timeseries_output_df.to_csv(
+                output_path / 
+                f"{CITY_NAMES.get(city)}-exam_{EXAM_TYPE_NAMES.get(exam_type)}-data.csv",
+                header=True, index=True)
+                
+
 
 if __name__ == "__main__":
-    from matplotlib.font_manager import FontProperties
-    from matplotlib import rcParams
-
-    config = {
-        "font.family": "serif",
-        "font.size": 12,
-        "mathtext.fontset":
-        "stix",  # matplotlib渲染数学字体时使用的字体，和Times New Roman差别不大
-        "font.serif": ["STZhongsong"],  # 华文中宋
-        "axes.unicode_minus": False  # 处理负号，即-号
-    }
-    rcParams.update(config)
-
+    import warnings
+    warnings.filterwarnings("ignore")
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_path", type=str, default="./cache")
     parser.add_argument("--output_path", type=str, default="./results")
     parser.add_argument("--pictures_path", type=str, default="./pictures")
     parser.add_argument("--models_path", type=str, default="./models")
-    # parser.add_argument("--task", type=str, default="predict")
-    parser.add_argument("--task", type=str, default="train")
-    parser.add_argument("--plot_types", type=list, default=["comp", "res"])
+    # parser.add_argument("--task", type=str, default="train")
+    parser.add_argument("--task", type=str, default="plot")
     args = parser.parse_args()
 
     logger.info("Input Parameters informations:")
@@ -215,11 +261,19 @@ if __name__ == "__main__":
     pictures_path = Path(args.pictures_path)
     models_path = Path(args.models_path)
     task = args.task
-    plot_types = args.plot_types
 
     for path in (output_path, pictures_path, models_path):
         if not path.exists():
             path.mkdir(parents=True)
 
-    step(input_path, pictures_path, models_path, task, plot_types)
+    if task == "train":
+        train_step(input_path, models_path, output_path)
+    if task == "plot":
+        city = "杭州市"
+        exam_type = "在岗期间职业健康检查"
+        plot_forecast_res(models_path=models_path,
+                          output_path=output_path,
+                          pictures_path=pictures_path,
+                          city=city,
+                          exam_type=exam_type)
     print(1)

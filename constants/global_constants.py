@@ -2577,3 +2577,66 @@ class PhysicalExamItems():
             "ProstateBModeUltrasound"
         ]
     }
+
+
+class OccupationalHealthKnowledge():
+    OCCUPATIONAL_GUIDE_KNOWLEDGE = {
+        "Pb": {
+            "pre_work":{                                # 上岗前职业健康检查
+                "target_disease":{
+                    "occupational_contraindications": ["中度贫血", "卟啉病", "多发性周围神经病"],
+                },
+                "examination_content":{
+                    "symptom_inquiry": ["消化系统", "神经系统", "贫血", "便秘", "腹痛", "头痛", "头晕","乏力","失眠","多梦","记忆力减退","四肢麻木"],
+                    "health_inspection": ["内科常规检查", "神经系统常规检查"],
+                    "laboratory_inspection": ["血常规","尿常规","心电图","血清ALT","血铅","尿铅","血红细胞锌源卟啉(ZPP)","红细胞游离原卟啉(FEP)","神经-肌电图"],
+                }
+            },
+            "on_work": {                                # 在岗期间职业健康检查
+                "target_disease":{
+                    "occupational_contraindications": ["中度贫血", "卟啉病", "多发性周围神经病"],
+                    "occupational_diseases": ["职业性慢性铅中毒"],
+                },
+                "examination_content":{
+                    "symptom_inquiry": ["消化系统", "神经系统", "贫血", "便秘", "腹痛", "头痛", "头晕","乏力","失眠","多梦","记忆力减退","四肢麻木"],
+                    "health_inspection": ["内科常规检查", "神经系统常规检查"],
+                    "laboratory_inspection": ["血常规","尿常规","心电图","血清ALT","血铅","尿铅","血红细胞锌源卟啉(ZPP)","红细胞游离原卟啉(FEP)","神经-肌电图", "尿-δ-氨基乙酰丙酸(δ-ALA)"],
+                },
+                "healthy_check_period": [{"check_index": "血铅","check_value_max": 600, "check_value_min": 400, "check_value_unit": "microgramme per Litre", "check_period_value": 3, "check_period_unit": "month"},
+                                         {"check_index": "尿铅","check_value_max": 120, "check_value_min": 70, "check_value_unit": "microgramme per Litre", "check_period_value": 3, "check_period_unit": "month"},
+                                         {"check_index": "血铅","check_value_max": 400, "check_value_min": None, "check_value_unit": "microgramme per Litre", "check_period_value": 12, "check_period_unit": "month"},
+                                         {"check_index": "尿铅","check_value_max": 70, "check_value_min": None, "check_value_unit": "microgramme per Litre", "check_period_value": 12, "check_period_unit": "month"}]
+            },
+            "off_work": {                                # 离岗时职业健康检查
+                "target_disease":{
+                    "occupational_diseases": ["职业性慢性铅中毒"],
+                },
+                "examination_content":{
+                    "symptom_inquiry": ["消化系统", "神经系统", "贫血", "便秘", "腹痛", "头痛", "头晕","乏力","失眠","多梦","记忆力减退","四肢麻木"],
+                    "health_inspection": ["内科常规检查", "神经系统常规检查"],
+                    "laboratory_inspection": ["血常规","尿常规","心电图","血清ALT","血铅","尿铅","血红细胞锌源卟啉(ZPP)","红细胞游离原卟啉(FEP)","神经-肌电图", "尿-δ-氨基乙酰丙酸(δ-ALA)"],
+                }
+            },
+            "emergency": {                               # 应急健康检查
+                "target_disease":{
+                    "occupational_diseases": [],
+                },
+                "examination_content":{
+                    "symptom_inquiry": [],
+                    "health_inspection": [],
+                    "laboratory_inspection": [],
+                }
+            },
+            "after_work": {
+                "target_disease":{
+                    "occupational_diseases": [],
+                },
+                "examination_content":{
+                    "symptom_inquiry": [],
+                    "health_inspection": [],
+                    "laboratory_inspection": [],
+                },
+                "check_time": {}
+            }
+        }
+    }
