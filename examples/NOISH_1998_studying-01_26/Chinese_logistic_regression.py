@@ -155,7 +155,7 @@ def userdefine_logistic_regression_task(
     params_estimated = []
     phi_estimated = []
     for L_control in L_control_range:
-        logger.info(f"Fit result for L_control = {L_control}")
+        # logger.info(f"Fit result for L_control = {L_control}")
         work_df = fit_df.copy()
         work_df = pd.get_dummies(work_df, columns=["duration_box_best"])
         work_df["LAeq"] = work_df["LAeq"].apply(lambda x: (x - L_control) / (
@@ -179,11 +179,11 @@ def userdefine_logistic_regression_task(
                 log_likelihood_value.append(results.fun)
                 params_estimated.append(results.x)
                 phi_estimated.append(phi)
-                logger.info(f"Fixed phi: {phi}")
-                logger.info(f"Fit status: {results.success}")
-                logger.info(f"Log likehood: {round(results.fun,2)}")
-                logger.info(f"Iterations: {results.nit}")
-                logger.info(f"Fit parameters: {results.x}")
+                # logger.info(f"Fixed phi: {phi}")
+                # logger.info(f"Fit status: {results.success}")
+                # logger.info(f"Log likehood: {round(results.fun,2)}")
+                # logger.info(f"Iterations: {results.nit}")
+                # logger.info(f"Fit parameters: {results.x}")
         else:
             results = minimize(log_likelihood_original,
                                params_init,
@@ -193,10 +193,10 @@ def userdefine_logistic_regression_task(
                                bounds=minimize_bounds)
             log_likelihood_value.append(results.fun)
             params_estimated.append(results.x)
-            logger.info(f"Fit status: {results.success}")
-            logger.info(f"Log likehood: {round(results.fun,2)}")
-            logger.info(f"Iterations: {results.nit}")
-            logger.info(f"Fit parameters: {results.x}")
+            # logger.info(f"Fit status: {results.success}")
+            # logger.info(f"Log likehood: {round(results.fun,2)}")
+            # logger.info(f"Iterations: {results.nit}")
+            # logger.info(f"Fit parameters: {results.x}")
             
 
     best_log_likelihood_value = np.min(log_likelihood_value)
@@ -286,8 +286,9 @@ def userdefine_logistic_regression_plot(best_params_estimated,
     pred_y = logistic_func_original(x=plot_X, params=best_params_estimated)
     f_prime = np.gradient(pred_y, LAeq)
     f_prime_double = np.gradient(f_prime, LAeq)
-    logger.info(f"f prime: {f_prime}")
-    logger.info(f"f prime double: {f_prime_double}")
+    # logger.info(f"f prime: {f_prime}")
+    # logger.info(f"f prime double: {f_prime_double}")
+    
 
     if point_type == "1st":
         point_x = LAeq[np.nanargmax(f_prime)]
@@ -316,6 +317,7 @@ def userdefine_logistic_regression_plot(best_params_estimated,
             control_y = logistic_func_control_1(
                 x=control_X, params=control_params_estimated)
         logger.info(f"control base probability: {control_y}")
+        logger.info(f"excess risk values: {(pred_y - control_y)[np.where((LAeq==80)|(LAeq==85)|(LAeq==90)|(LAeq==95)|(LAeq==100))]}")
 
     fig, ax = plt.subplots(1, figsize=(6.5, 5))
     ax.plot(LAeq, (pred_y - control_y)*100)
@@ -503,8 +505,8 @@ if __name__ == "__main__":
         type=str,
         default="./cache/Chinese_extract_experiment_df_average_freq.csv")
         # default="./cache/Chinese_extract_experiment_classifier_df.csv")
-    # parser.add_argument("--task", type=str, default="analysis")
-    parser.add_argument("--task", type=str, default="plot")
+    parser.add_argument("--task", type=str, default="analysis")
+    # parser.add_argument("--task", type=str, default="plot")
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--models_path", type=str, default="./models")
     parser.add_argument("--pictures_path", type=str, default="./pictures")
@@ -656,7 +658,7 @@ if __name__ == "__main__":
         # data type convert
         duration_cut = [0, 4, 10, np.inf]
         kurtosis_arimean_cut = [3, 10, 50, np.inf]
-        kurtosis_geomean_cut = [3, 8, 20, np.inf]
+        kurtosis_geomean_cut = [3, 25, 60, 160]
         extract_df["duration_box_best"] = extract_df["duration"].apply(
             lambda x: mark_group_name(x, qcut_set=duration_cut, prefix="D-"))
         extract_df["kurtosis_arimean_box"] = extract_df[
@@ -683,26 +685,26 @@ if __name__ == "__main__":
         #     L_control_range=np.arange(60, 79),
         #     # phi_range=[1,2,3],
         #     minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[1, 3]))
+
         ### KG-groups
-        KG_group = "KG-1"
-        # KG_group = "KG-2"
-        # KG_group = "KG-3"
-        for KG_group in ["KG-1", "KG-2", "KG-3"]:
-            max_LAeq = extract_df["LAeq"].max()
-            fit_df = extract_df.query(
-                f"duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean_box == @KG_group")[[
-                    "age", "LAeq", "duration_box_best", "NIHL1234_Y"
-                ]]
-            userdefine_logistic_regression_task(
-                fit_df=fit_df,
-                max_LAeq=max_LAeq,
-                models_path=models_path,
-                model_name=f"{KG_group}-Chinese_experiment_group_udlr_model_average_freq.pkl",
-                y_col_name="NIHL1234_Y",
-                params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
-                L_control_range=np.arange(60, 79),
-                # phi_range=[1,2,3],
-                minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[1, 3]))
+        # for KG_group in ["KG-1", "KG-2", "KG-3"]: #, "KG-4"]:
+        #     max_LAeq = extract_df["LAeq"].max()
+        #     fit_df = extract_df.query(
+        #         f"duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean_box == @KG_group")[[
+        #             "age", "LAeq", "duration_box_best", "NIHL1234_Y"
+        #         ]]
+        #     userdefine_logistic_regression_task(
+        #         fit_df=fit_df,
+        #         max_LAeq=max_LAeq,
+        #         models_path=models_path,
+        #         model_name=f"{KG_group}-Chinese_experiment_group_udlr_model_average_freq.pkl",
+        #         y_col_name="NIHL1234_Y",
+        #         params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
+        #         L_control_range=np.arange(60, 79),
+        #         # phi_range=[1,2,3],
+        #         minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[1, 3]))
+
+
         ## NIHL346_Y
         # max_LAeq = extract_df["LAeq"].max()
         # fit_df = extract_df.query(
@@ -718,25 +720,42 @@ if __name__ == "__main__":
         #     params_init=[-5.36, 0.08, 7.66, 8.98, 9.42, 3],
         #     L_control_range=np.arange(60, 79),
         #     # phi_range=[1,2,3,4,5],
-        #     minimize_bounds = ([None,None],[None,None],[4.5, 8.9],[5.5,9.9],[6.5, 10.9],[1, 3]))
+        #     minimize_bounds = ([None, -4.7],[None,0.09],[None, None],[None,None],[None, None],[1, 3]))
+
+        ### KG-groups
+        for KG_group in ["KG-1", "KG-2", "KG-3"]:
+            max_LAeq = extract_df["LAeq"].max()
+            fit_df = extract_df.query(
+                f"duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean_box == @KG_group")[[
+                    "age", "LAeq", "duration_box_best", "NIHL346_Y"
+                ]]
+            userdefine_logistic_regression_task(
+                fit_df=fit_df,
+                max_LAeq=max_LAeq,
+                models_path=models_path,
+                model_name=f"{KG_group}-Chinese_experiment_group_udlr_model_average_freq.pkl",
+                y_col_name="NIHL346_Y",
+                params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
+                L_control_range=np.arange(60, 79),
+                # phi_range=[1,2,3],
+                minimize_bounds = ([None, -4.7],[None,0.09],[None, None],[None,None],[None, None],[1, 3]))
 
 ################################################################################################################################
     if task == "plot":
         freq_col = "NIHL1234_Y"
         # freq_col = "NIHL346_Y"
 
-        # KG_group = "KG-1"
-        KG_group = "KG-2"
-        # KG_group = "KG-3"
+        # KG_group = True
+        KG_group = False
 
         # age = 30
         # duration = np.array([0, 1, 0])
-        # age = 45 
-        # duration = np.array([0, 1, 0])
+        age = 45 
+        duration = np.array([0, 1, 0])
         # age = 45
         # duration = np.array([0, 0, 1])
-        age = 65
-        duration = np.array([0, 0, 1])
+        # age = 65 
+        # duration = np.array([0, 0, 1])
 
         control_params_estimated, control_log_likelihood_value = pickle.load(
                     open(
@@ -771,6 +790,7 @@ if __name__ == "__main__":
                     models_path /
                     Path(f"{freq_col}-Chinese_experiment_group_udlr_model_average_freq.pkl"),
                     "rb"))
+            # best_params_estimated = [-4.7, 0.09, 10.0233, 11.9683, 11.1516, 3.0]
             num_res = userdefine_logistic_regression_plot(
                 best_params_estimated=best_params_estimated,
                 best_L_control=best_L_control,

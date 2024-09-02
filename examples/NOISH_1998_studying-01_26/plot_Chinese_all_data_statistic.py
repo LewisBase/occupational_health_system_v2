@@ -45,7 +45,7 @@ def plot_LAeq_statistic_res(experiment_df, pictures_path):
                        xticklabels=LAeq_cut,
                        xlabel_name="$L_{Aeq,8h}$ (dBA)",
                        output_path=pictures_path,
-                       picture_name="Fig2A",
+                       picture_name="Fig1A",
                        picture_format="tiff",
                        annotations={"A": (-0.1, 1.05)})
 
@@ -78,7 +78,7 @@ def plot_kurtosis_statistic_res(experiment_df, pictures_path):
         xticklabels=["[0,3]", "(3,10]", "(10,30]", "(30,75]", ">75"],
         xlabel_name="Geometric Averaging Kurtosis",
         output_path=pictures_path,
-        picture_name="Fig2B",
+        picture_name="Fig1B",
         picture_format="tiff",
         annotations={"B": (-0.1, 1.05)},
         # show_label=True,
@@ -123,13 +123,13 @@ def plot_NIHL_statistic_res(experiment_df, control_df, qcut_set, groupby_key,
                                                str_loc=len(prefix))
 
     plot_frequency_bar(freqs={
-        "experiment group: $\\text{NIHL}_{1234}$":
+        "experiment group: $\\text{HL}_{1234}$":
         exper_NIHL1234_freq,
-        "control group: $\\text{NIHL}_{1234}$":
+        "control group: $\\text{HL}_{1234}$":
         contr_NIHL1234_freq,
-        "experiment group: $\\text{NIHL}_{346}$":
+        "experiment group: $\\text{HL}_{346}$":
         exper_NIHL346_freq,
-        "control group: $\\text{NIHL}_{346}$":
+        "control group: $\\text{HL}_{346}$":
         contr_NIHL346_freq,
     },
                        start_point=start_point,
@@ -138,39 +138,39 @@ def plot_NIHL_statistic_res(experiment_df, control_df, qcut_set, groupby_key,
                        xticklabels=qcut_set,
                        label_type=False,
                        xlabel_name=xlabel_name,
-                       ylabel_name="NIHL proportion (%)",
+                       ylabel_name="Proportion of Hearing Loss (%)",
                        output_path=pictures_path,
                        picture_name=picture_name,
                        picture_format="tiff",
                        annotations=annotations,
                        bar_width=1.0,
                        color_type={
-                           "experiment group: $\\text{NIHL}_{1234}$": {
+                           "experiment group: $\\text{HL}_{1234}$": {
                                "color": "#1f77b4",
                                "hatch": ""
                            },
-                           "control group: $\\text{NIHL}_{1234}$": {
+                           "control group: $\\text{HL}_{1234}$": {
                                "color": "#1f77b4",
                                "hatch": "///"
                            },
-                           "experiment group: $\\text{NIHL}_{346}$": {
+                           "experiment group: $\\text{HL}_{346}$": {
                                "color": "#ff7f0e",
                                "hatch": ""
                            },
-                           "control group: $\\text{NIHL}_{346}$": {
+                           "control group: $\\text{HL}_{346}$": {
                                "color": "#ff7f0e",
                                "hatch": "///"
                            },
                        },
                        userdefine_label={
-                           "$\\text{NIHL}_{1234}$":
+                           "$\\text{HL}_{1234}$":
                            plt.Rectangle((0, 0),
                                          1,
                                          1,
                                          fc="#1f77b4",
                                          ec="black",
                                          alpha=0.4),
-                           "$\\text{NIHL}_{346}$":
+                           "$\\text{HL}_{346}$":
                            plt.Rectangle((0, 0),
                                          1,
                                          1,
@@ -240,8 +240,9 @@ if __name__ == "__main__":
         "--input_paths",
         type=list,
         default=[
-            "./cache/Chinese_extract_experiment_classifier_df.csv",
-            "./cache/Chinese_extract_control_classifier_df.csv"
+            "./cache/Chinese_extract_experiment_df_average_freq.csv",
+            "./cache/NOISH_extract_control_df.csv"
+            # "./cache/Chinese_extract_control_classifier_df.csv"
         ])
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--pictures_path", type=str, default="./pictures")
@@ -272,6 +273,8 @@ if __name__ == "__main__":
             control_df = pd.read_csv(input_path,
                                      header=0,
                                      index_col="staff_id")
+            rename_col = seq(control_df.columns).map(lambda x: "NI"+x if x.startswith("HL") else x)
+            control_df.columns = rename_col
 
     # experiment group statistic and plot
     ## LAeq frequency
@@ -291,7 +294,7 @@ if __name__ == "__main__":
                             prefix="A",
                             start_point=16,
                             xlabel_name="Age (year)",
-                            picture_name="Fig2C",
+                            picture_name="Fig1C",
                             annotations={"C": (-0.1, 1.05)},
                             pictures_path=pictures_path)
     ### Mantel-Haensel Test under age
@@ -309,7 +312,7 @@ if __name__ == "__main__":
                             prefix="D",
                             start_point=1,
                             xlabel_name="Duration (year)",
-                            picture_name="Fig2D",
+                            picture_name="Fig1D",
                             annotations={"D": (-0.1, 1.05)},
                             pictures_path=pictures_path)
     ### Mantel-Haensel Test under duration

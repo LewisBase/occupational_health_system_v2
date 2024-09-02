@@ -4,12 +4,16 @@
 
 关键程序及文件说明：
 
-* Chinese_logistic_regresssion.py: 中国工人数据实验的最终结果，详细结果与讨论参见"D:\工作文档\研究课题\0.噪声与耳毒性化学溶剂联合暴露对听力损伤的影响\2.研究结论\复杂噪声影响\3.final_report\噪声性耳聋概率曲线拟合结果_0405.docx"；
 * load_Chinese_data.py: 加载目前所有的中国工人噪声暴露数据（含C计权），构建staff_info对象后封存到pkl文件中；
 * extract_all_Chinese_data.py: 从压缩的staff_info对象文件中进行信息提取；
-* Chinese_control_group_logistic_regression_0.py: 中国工人对照组（含70dB以下暴露数据）数据听力损伤概率，自变量仅为age；
-* Chinese_control_group_logistic_regression_1.py: 中国工人对照组（含70dB以下暴露数据）数据听力损伤概率，自变量为age与duration；
-* Chinese_all_data_statistic_plot.py: 对所有中国工人数据（实验组+对照组）进行整体统计与检验并绘图；
+* Chinese_logistic_regresssion.py: 中国工人数据实验的最终结果；
+* NOISH_logistic_regression_control_data.py: NOISH对照组数据听力损伤背景风险回归，自变量仅为age；
+* Chinese_logistic_regression_Bootstrap.py: 中国工人数据实验的Bootstrap重采样结果；
+* plot_Chinese_all_data_statistic.py: 对所有中国工人数据（实验组+对照组）进行整体统计与检验并绘图；
+* plot_devirative_scheme.py: 对超额风险概率曲线及其一、二阶导数曲线进行绘制；
+* plot_excess_risk_compare.py: 超额风险对比情况绘制；
+* plot_excess_risk_kurtosis_compare.py: 按峰度分组后的超额风险对比情况绘制；
+* plot_NOISH_excess_risk.py: NOISH数据结果超额风险结果绘制；
 
 * ./cache/extract_Chinese_data.pkl: 加载的所有中国工人暴露数据压缩包；
 * ./cache/extract_Chinese_control_data.pkl: 加载的所有中国对照组数据压缩包；
