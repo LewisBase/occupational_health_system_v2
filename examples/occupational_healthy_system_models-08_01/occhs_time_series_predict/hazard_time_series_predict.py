@@ -51,12 +51,11 @@ CITY_NAMES = {
     "湖州市": "Huzhou"
 }
 
-EXAM_TYPE_NAMES = {
-    "上岗前职业健康检查": "pre_work",
-    "在岗期间职业健康检查": "on_work",
-    "离岗时职业健康检查": "off_work",
-    "离岗后健康检查": "after_work",
-    "应急健康检查": "emergency",
+HAZARD_TYPE_NAMES = {
+    "高温(高温作业)": "high_temperature",
+    "正己烷": "n_hexane",
+    "甲醇": "methyl_alcohol",
+    "噪声": "noise",
 }
 
 DIAGNOISE_TYPE_NAMES = {
@@ -104,56 +103,46 @@ def plot_forecast_res(models_path,
                       output_path,
                       pictures_path,
                       city: str = "杭州市",
-                      exam_type: str = "在岗期间职业健康检查",
+                      hazard_types: list = [],
                       future_periods: int = 180,
                       xlabel="日期",
-                      ylabel="职业健康检查人数",
-                      y2label="职业病相关人数",
+                      ylabel="危害因素暴露人数",
                       **kwargs):
-    data = pd.read_csv(output_path / 
-                       f"{CITY_NAMES.get(city)}-exam_{EXAM_TYPE_NAMES.get(exam_type)}-data.csv",
-                       parse_dates=["report_issue_date"],
-                       header=0, index_col="report_issue_date")
-    try:
-        data_train = data.query("data_type == 'train'").resample("W").sum()
-        data_test = data.query("data_type == 'test'").resample("W").sum()
-    except:
-        raise ValueError("数据量太少，无法进行建模")
+    
     
     model_pred_dict = {}
-    for col in data.columns.drop("data_type"):
+    for col in hazard_types:
+        data = pd.read_csv(output_path / 
+                       f"{CITY_NAMES.get(city)}-hazard_{HAZARD_TYPE_NAMES.get(col)}-data.csv",
+                       parse_dates=["report_issue_date"],
+                       header=0, index_col="report_issue_date")
+        try:
+            data_train = data.query("data_type == 'train'").resample("W").sum()
+            data_test = data.query("data_type == 'test'").resample("W").sum()
+        except:
+            raise ValueError("数据量太少，无法进行建模")
+
         model = pickle.load(
         open(
             models_path /
-            f"{CITY_NAMES.get(city)}-exam_{EXAM_TYPE_NAMES.get(exam_type)}-diagnoise_{DIAGNOISE_TYPE_NAMES.get(col, col)}-model.pkl",
+            f"{CITY_NAMES.get(city)}-hazard_{HAZARD_TYPE_NAMES.get(col)}-model.pkl",
             "rb"))
         future = model.make_future_dataframe(
             periods=future_periods,
             freq='D')  #预测时长
         fcst = model.predict(future)
         fcst.index = fcst['ds'].dt.to_pydatetime()
-        model_pred_dict[col] = fcst.resample("W").sum()
+        
+        model_pred_dict[col] = {"train": data_train, "test": data_test, "predict": fcst.resample("W").sum()}
     
-    fcst_base = model_pred_dict["exam_nums"]
     fig, ax = plt.subplots(1, figsize=(15, 5))
-    ax.plot(data_train.index,
-            data_train["exam_nums"],
-            "k.",
-            label="历史观测数据（训练）")
-    ax.plot(data_test.index, data_test["exam_nums"], "r.", label="历史观测数据（测试）")
-    ax.plot(fcst_base.index, fcst_base["yhat"], ls="-", c="#0072B2", label="参加职业健康检查人数")
-    ax.fill_between(fcst_base.index,
-                    fcst_base["yhat_lower"],
-                    fcst_base["yhat_upper"],
-                    color="#0072B2",
-                    alpha=0.2)
-    ax2 = ax.twinx()
-    bottom=np.zeros(fcst_base.shape[0])
-    for key, value in model_pred_dict.items():
-        if key != "exam_nums":
-            p = ax2.bar(value.index, value["yhat"].astype(int), width=5, label=key, bottom=bottom)
-            bottom += value["yhat"].astype(int)
-            ax2.bar_label(p, label_type="center", fontsize=5)
+    for col in hazard_types:
+        data_train = model_pred_dict[col]["train"]
+        data_test = model_pred_dict[col]["test"]
+        fcst_base = model_pred_dict[col]["predict"]
+        train_scatter = ax.scatter(data_train.index, data_train["exam_nums"], marker="x")
+        test_scatter = ax.scatter(data_test.index, data_test["exam_nums"], marker="+", color=train_scatter.get_facecolor())
+        ax.plot(fcst_base.index, fcst_base["yhat"], ls="-", label=f"{col}-危害因素暴露人数")
     
     locator = AutoDateLocator(interval_multiples=False)
     formatter = AutoDateFormatter(locator)
@@ -162,60 +151,46 @@ def plot_forecast_res(models_path,
     ax.grid(True, which="major", c="gray", ls="-", lw=1, alpha=0.2)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax2.set_ylabel(y2label)
-    ax.set_title(f"{city}-{exam_type}监控情况及未来趋势")
-    y_min, y_max = ax.get_ylim()
-    ax2.set_ylim(0, y_max/20)
+    ax.set_title(f"{city}-部分危害因素暴露情况及未来趋势")
     ax.legend(loc="upper left")
-    ax2.legend(loc="upper right")
     fig.tight_layout()
     fig.savefig(pictures_path /
-                    f"{CITY_NAMES.get(city)}-exam_{EXAM_TYPE_NAMES.get(exam_type)}-res.png")
+                    f"{CITY_NAMES.get(city)}-hazard_exposure-res.png")
     plt.close(fig=fig)
     return fig
 
 
 def train_step(input_path, models_path, output_path):
 
-    diagnoise_input_df = pd.read_csv(input_path /
-                                     "diagnoise_time_series_data.csv",
+    hazard_input_df = pd.read_csv(input_path /
+                                     "hazard_time_series_data.csv",
                                      header=0)
-    diagnoise_input_df["report_issue_date"] = pd.to_datetime(
-        diagnoise_input_df["report_issue_date"])
-    diagnoise_input_df.sort_values(by="report_issue_date",
+    hazard_input_df["report_issue_date"] = pd.to_datetime(
+        hazard_input_df["report_issue_date"])
+    hazard_input_df.sort_values(by="report_issue_date",
                                    ascending=True,
                                    inplace=True)
 
-    city_list = diagnoise_input_df["organization_city"].drop_duplicates()
+    city_list = hazard_input_df["organization_city"].drop_duplicates()
     for city in city_list:
         logger.info(f"Start to process the data in city: {city}")
-        diagnoise_sub_city_df = diagnoise_input_df.query("organization_city == @city")
-        physical_exam_type_list = diagnoise_sub_city_df["physical_exam_type"].drop_duplicates()
-        for exam_type in physical_exam_type_list:
-            logger.info(f"Start to process the data in exam type: {exam_type}")
-            diagnoise_sub_df = diagnoise_sub_city_df.query("physical_exam_type == @exam_type")
-            # 统计城市-体检类型下参加职业健康检查的人数
-            diagnoise_timeseries_sub_df = diagnoise_sub_df.groupby(
+        hazard_sub_city_df = hazard_input_df.query("organization_city == @city")
+        hazard_type_list = hazard_sub_city_df["hazard_type"].drop_duplicates()
+        for hazard_type in HAZARD_TYPE_NAMES.keys():
+        # for hazard_type in hazard_type_list:
+            logger.info(f"Start to process the data in exam type: {hazard_type}")
+            hazard_sub_df = hazard_sub_city_df.query("hazard_type == @hazard_type")
+            # 统计城市-危害因素类型下参加职业健康检查的人数
+            hazard_timeseries_sub_df = hazard_sub_df.groupby(
                 ["report_issue_date"]).sum()
-            diagnoise_timeseries_sub_df.rename(
-                columns={"diagnoise_res": "exam_nums"}, inplace=True)
-
-            # 统计城市-体检类型下职业健康体检结果为规定需要关注类型的人数
-            diagnoise_type_list = DIAGNOISE_TYPE_DICTS.get(exam_type)
-            for diagnoise_type in diagnoise_type_list:
-                diagnoise_num_series = diagnoise_sub_df.query(
-                    "diagnoise_type == @diagnoise_type").groupby(
-                        ["report_issue_date"]).sum()["diagnoise_res"]
-                diagnoise_timeseries_sub_df = diagnoise_timeseries_sub_df.join(
-                    diagnoise_num_series, how="left").fillna(0)
-                diagnoise_timeseries_sub_df.rename(
-                    columns={"diagnoise_res": diagnoise_type}, inplace=True)
+            hazard_timeseries_sub_df.rename(
+                columns={"hazard_res": "exam_nums"}, inplace=True)
 
             # 训练时间序列模型
-            if diagnoise_timeseries_sub_df.shape[0] > 10:
+            if hazard_timeseries_sub_df.shape[0] > 10:
                 train_X, test_X, train_y, test_y = timeseries_train_test_split(
-                    X=pd.Series(diagnoise_timeseries_sub_df.index),
-                    y=diagnoise_timeseries_sub_df,
+                    X=pd.Series(hazard_timeseries_sub_df.index),
+                    y=hazard_timeseries_sub_df,
                     train_size=0.8)
                 for col in train_y.columns:
                     logger.info(f"Start to analysis the {col} data")
@@ -225,17 +200,17 @@ def train_step(input_path, models_path, output_path):
                         model,
                         open(
                             models_path /
-                            f"{CITY_NAMES.get(city)}-exam_{EXAM_TYPE_NAMES.get(exam_type)}-diagnoise_{DIAGNOISE_TYPE_NAMES.get(col, col)}-model.pkl",
+                            f"{CITY_NAMES.get(city)}-hazard_{HAZARD_TYPE_NAMES.get(hazard_type)}-model.pkl",
                             "wb"))
                 train_y["data_type"] = "train"
                 test_y["data_type"] = "test"
                 diagnoise_timeseries_output_df = pd.concat([train_y, test_y])
             else:
-                logger.warning(f"{city}-{exam_type}数据量少于十条")
-                diagnoise_timeseries_output_df = diagnoise_timeseries_sub_df
+                logger.warning(f"{city}-{hazard_type}数据量少于十条")
+                diagnoise_timeseries_output_df = hazard_timeseries_sub_df
             diagnoise_timeseries_output_df.to_csv(
                 output_path / 
-                f"{CITY_NAMES.get(city)}-exam_{EXAM_TYPE_NAMES.get(exam_type)}-data.csv",
+                f"{CITY_NAMES.get(city)}-hazard_{HAZARD_TYPE_NAMES.get(hazard_type)}-data.csv",
                 header=True, index=True)
                 
 
@@ -271,10 +246,10 @@ if __name__ == "__main__":
         train_step(input_path, models_path, output_path)
     if task == "plot":
         city = "杭州市"
-        exam_type = "在岗期间职业健康检查"
+        hazard_types = ["正己烷", "噪声", "甲醇", "高温(高温作业)"]
         plot_forecast_res(models_path=models_path,
                           output_path=output_path,
                           pictures_path=pictures_path,
                           city=city,
-                          exam_type=exam_type)
+                          hazard_types=hazard_types)
     print(1)

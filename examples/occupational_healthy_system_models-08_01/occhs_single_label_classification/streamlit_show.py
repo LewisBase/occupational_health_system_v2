@@ -24,10 +24,10 @@ from sklearn import metrics
 
 import sys
 
-sys.path.append("../../../occupational_health_system_v2")
-sys.path.append("../../occupational_healthy_system_models-04_10")
-sys.path.append("/mount/src/occupational_health_system_v2")                                                   # 用于线上托管
-sys.path.append("/mount/src/occupational_health_system_v2/examples/occupational_healthy_system_models-04_10") # 用于线上托管
+sys.path.append("../../../../occupational_health_system_v2")
+sys.path.append("../../../occupational_healthy_system_models-08_01")
+# sys.path.append("/mount/src/occupational_health_system_v2")                                                   # 用于线上托管
+# sys.path.append("/mount/src/occupational_health_system_v2/examples/occupational_healthy_system_models-04_10") # 用于线上托管
 
 from utils.data_helper import get_categorical_indicies
 
@@ -182,6 +182,7 @@ def step(input_path, models_path):
             proba_results.append(model.predict_proba(user_values.values))
 
         plot_results = seq(proba_results).map(lambda x: x[1]).list()
+        print(plot_results)
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=list(range(1, 366)), y=plot_results, mode="lines+markers", name="体检结果异常概率"))
         fig.update_layout(xaxis_title="未来在岗天数",
