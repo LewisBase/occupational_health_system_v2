@@ -52,25 +52,28 @@ def _extract_data_for_task(data, **additional_set):
     # worker health infomation
     res["NIHL1234"] = data.staff_health_info.auditory_detection.get(
         "PTA").mean(mean_key=[1000, 2000, 3000, 4000])
+    res["NIHL1234w"] = data.staff_health_info.auditory_detection.get(
+        "PTA").mean(mean_key=dict(zip([1000, 2000, 3000, 4000],[0.24, 0.38, 0.34, 0.24])))
     res["NIHL346"] = data.staff_health_info.auditory_detection.get("PTA").mean(
         mean_key=[3000, 4000, 6000])
-    res["NIPTS1234"] = AuditoryDiagnose.NIPTS(
-        detection_result=data.staff_health_info.auditory_detection["PTA"],
-        sex=data.staff_basic_info.sex,
-        age=data.staff_basic_info.age,
-        mean_key=[1000, 2000, 3000, 4000],
-        NIPTS_diagnose_strategy=NIPTS_diagnose_strategy)
-    res["NIPTS346"] = AuditoryDiagnose.NIPTS(
-        detection_result=data.staff_health_info.auditory_detection["PTA"],
-        sex=data.staff_basic_info.sex,
-        age=data.staff_basic_info.age,
-        mean_key=[3000, 4000, 6000],
-        NIPTS_diagnose_strategy=NIPTS_diagnose_strategy)
+    # res["NIPTS1234"] = AuditoryDiagnose.NIPTS(
+    #     detection_result=data.staff_health_info.auditory_detection["PTA"],
+    #     sex=data.staff_basic_info.sex,
+    #     age=data.staff_basic_info.age,
+    #     mean_key=[1000, 2000, 3000, 4000],
+    #     NIPTS_diagnose_strategy=NIPTS_diagnose_strategy)
+    # res["NIPTS346"] = AuditoryDiagnose.NIPTS(
+    #     detection_result=data.staff_health_info.auditory_detection["PTA"],
+    #     sex=data.staff_basic_info.sex,
+    #     age=data.staff_basic_info.age,
+    #     mean_key=[3000, 4000, 6000],
+    #     NIPTS_diagnose_strategy=NIPTS_diagnose_strategy)
 
     res["NIHL1234_Y"] = 0 if res["NIHL1234"] <= 25 else 1
+    res["NIHL1234w_Y"] = 0 if res["NIHL1234w"] <= 25 else 1
     res["NIHL346_Y"] = 0 if res["NIHL346"] <= 25 else 1
-    res["NIPTS1234_Y"] = 0 if res["NIPTS1234"] <= 0 else 1
-    res["NIPTS346_Y"] = 0 if res["NIPTS346"] <= 0 else 1
+    # res["NIPTS1234_Y"] = 0 if res["NIPTS1234"] <= 0 else 1
+    # res["NIPTS346_Y"] = 0 if res["NIPTS346"] <= 0 else 1
 
     # noise information
     res["LAeq"] = data.staff_occupational_hazard_info.noise_hazard_info.LAeq
@@ -503,10 +506,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--input_path",
         type=str,
-        default="./cache/Chinese_extract_experiment_df_average_freq.csv")
+        default="./cache/Chinese_extract_experiment_df_average_freq_1234w.csv")
+        # default="./cache/Chinese_extract_experiment_df_average_freq.csv")
         # default="./cache/Chinese_extract_experiment_classifier_df.csv")
-    parser.add_argument("--task", type=str, default="analysis")
-    # parser.add_argument("--task", type=str, default="plot")
+    # parser.add_argument("--task", type=str, default="analysis")
+    parser.add_argument("--task", type=str, default="plot")
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--models_path", type=str, default="./models")
     parser.add_argument("--pictures_path", type=str, default="./pictures")
@@ -648,7 +652,8 @@ if __name__ == "__main__":
         filter_df.index = filter_df.staff_id
         filter_df.drop("staff_id", axis=1, inplace=True)
         filter_df.to_csv(output_path /
-                         "Chinese_extract_experiment_df_average_freq.csv",
+                         "Chinese_extract_experiment_df_average_freq_1234w.csv",
+                        #  "Chinese_extract_experiment_df_average_freq.csv",
                         #  "Chinese_extract_experiment_classifier_df.csv",
                          header=True,
                          index=True)
@@ -658,12 +663,9 @@ if __name__ == "__main__":
         # data type convert
         duration_cut = [0, 4, 10, np.inf]
         kurtosis_arimean_cut = [3, 10, 50, np.inf]
-        kurtosis_geomean_cut = [3, 25, 60, 160]
+        kurtosis_geomean_cut = [3, 25, 65, 165]
         extract_df["duration_box_best"] = extract_df["duration"].apply(
             lambda x: mark_group_name(x, qcut_set=duration_cut, prefix="D-"))
-        extract_df["kurtosis_arimean_box"] = extract_df[
-            "kurtosis_arimean"].apply(lambda x: mark_group_name(
-                x, qcut_set=kurtosis_arimean_cut, prefix="KA-"))
         extract_df["kurtosis_geomean_box"] = extract_df[
             "kurtosis_geomean"].apply(lambda x: mark_group_name(
                 x, qcut_set=kurtosis_geomean_cut, prefix="KG-"))
@@ -704,6 +706,43 @@ if __name__ == "__main__":
         #         # phi_range=[1,2,3],
         #         minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[1, 3]))
 
+        ## NIHL1234w_Y
+        max_LAeq = extract_df["LAeq"].max()
+        fit_df = extract_df.query(
+            "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
+                "age", "LAeq", "duration_box_best", "NIHL1234w_Y"
+            ]]
+        userdefine_logistic_regression_task(
+            fit_df=fit_df,
+            max_LAeq=max_LAeq,
+            models_path=models_path,
+            model_name="Chinese_experiment_group_udlr_model_average_freq.pkl",
+            y_col_name="NIHL1234w_Y",
+            L_control_range=np.arange(60, 79),
+            # params_init=[-5.36, 0.08, 2.66, 3.98, 6.42],
+            # phi_range=[1,2,3,4,5],
+            # minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None]))
+            params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
+            minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[0, 3]))
+
+        ## KG-groups
+        for KG_group in ["KG-1", "KG-2", "KG-3"]: #, "KG-4"]:
+            max_LAeq = extract_df["LAeq"].max()
+            fit_df = extract_df.query(
+                f"duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean_box == @KG_group")[[
+                    "age", "LAeq", "duration_box_best", "NIHL1234w_Y"
+                ]]
+            userdefine_logistic_regression_task(
+                fit_df=fit_df,
+                max_LAeq=max_LAeq,
+                models_path=models_path,
+                model_name=f"{KG_group}-Chinese_experiment_group_udlr_model_average_freq.pkl",
+                y_col_name="NIHL1234w_Y",
+                params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
+                L_control_range=np.arange(60, 79),
+                # phi_range=[1,2,3],
+                minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[1, 3]))
+
 
         ## NIHL346_Y
         # max_LAeq = extract_df["LAeq"].max()
@@ -723,26 +762,27 @@ if __name__ == "__main__":
         #     minimize_bounds = ([None, -4.7],[None,0.09],[None, None],[None,None],[None, None],[1, 3]))
 
         ### KG-groups
-        for KG_group in ["KG-1", "KG-2", "KG-3"]:
-            max_LAeq = extract_df["LAeq"].max()
-            fit_df = extract_df.query(
-                f"duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean_box == @KG_group")[[
-                    "age", "LAeq", "duration_box_best", "NIHL346_Y"
-                ]]
-            userdefine_logistic_regression_task(
-                fit_df=fit_df,
-                max_LAeq=max_LAeq,
-                models_path=models_path,
-                model_name=f"{KG_group}-Chinese_experiment_group_udlr_model_average_freq.pkl",
-                y_col_name="NIHL346_Y",
-                params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
-                L_control_range=np.arange(60, 79),
-                # phi_range=[1,2,3],
-                minimize_bounds = ([None, -4.7],[None,0.09],[None, None],[None,None],[None, None],[1, 3]))
+        # for KG_group in ["KG-1", "KG-2", "KG-3"]:
+        #     max_LAeq = extract_df["LAeq"].max()
+        #     fit_df = extract_df.query(
+        #         f"duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean_box == @KG_group")[[
+        #             "age", "LAeq", "duration_box_best", "NIHL346_Y"
+        #         ]]
+        #     userdefine_logistic_regression_task(
+        #         fit_df=fit_df,
+        #         max_LAeq=max_LAeq,
+        #         models_path=models_path,
+        #         model_name=f"{KG_group}-Chinese_experiment_group_udlr_model_average_freq.pkl",
+        #         y_col_name="NIHL346_Y",
+        #         params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
+        #         L_control_range=np.arange(60, 79),
+        #         # phi_range=[1,2,3],
+        #         minimize_bounds = ([None, -4.7],[None,0.09],[None, None],[None,None],[None, None],[1, 3]))
 
 ################################################################################################################################
     if task == "plot":
-        freq_col = "NIHL1234_Y"
+        # freq_col = "NIHL1234_Y"
+        freq_col = "NIHL1234w_Y"
         # freq_col = "NIHL346_Y"
 
         # KG_group = True
@@ -750,12 +790,12 @@ if __name__ == "__main__":
 
         # age = 30
         # duration = np.array([0, 1, 0])
-        age = 45 
-        duration = np.array([0, 1, 0])
+        # age = 45 
+        # duration = np.array([0, 1, 0])
         # age = 45
         # duration = np.array([0, 0, 1])
-        # age = 65 
-        # duration = np.array([0, 0, 1])
+        age = 65 
+        duration = np.array([0, 0, 1])
 
         control_params_estimated, control_log_likelihood_value = pickle.load(
                     open(

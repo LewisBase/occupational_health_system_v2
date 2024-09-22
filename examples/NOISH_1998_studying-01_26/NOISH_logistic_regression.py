@@ -74,6 +74,8 @@ def _extract_data_for_task(data, **additional_set):
     # worker health infomation
     res["HL1234"] = data.staff_health_info.auditory_detection.get("PTA").mean(
         mean_key=[1000, 2000, 3000, 4000])
+    res["HL1234w"] = data.staff_health_info.auditory_detection.get("PTA").mean(
+        mean_key=dict(zip([1000, 2000, 3000, 4000],[0.24, 0.38, 0.34, 0.24])))
     res["HL5123"] = data.staff_health_info.auditory_detection.get("PTA").mean(
         mean_key=[500, 1000, 2000, 3000])
     res["HL123"] = data.staff_health_info.auditory_detection.get("PTA").mean(
@@ -84,6 +86,7 @@ def _extract_data_for_task(data, **additional_set):
         mean_key=[3000, 4000, 6000])
 
     res["HL1234_Y"] = 0 if res["HL1234"] <= 25 else 1
+    res["HL1234w_Y"] = 0 if res["HL1234"] <= 25 else 1
     res["HL5123_Y"] = 0 if res["HL5123"] <= 25 else 1
     res["HL123_Y"] = 0 if res["HL123"] <= 25 else 1
     res["HL512_Y"] = 0 if res["HL512"] <= 25 else 1

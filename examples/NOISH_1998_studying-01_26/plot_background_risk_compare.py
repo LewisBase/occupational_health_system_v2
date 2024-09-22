@@ -51,17 +51,17 @@ def userdefine_logistic_regression_plot(control_params_estimated_1234,
                                params=control_params_estimated_346) * 100
 
     fig, ax = plt.subplots(1, figsize=(6.5, 5), dpi=dpi)
-    ax.plot(plot_X, pred_y_1234, label="$\\text{HL}_{1234}$")
-    # ax.plot(plot_X, pred_y_346, label="$\\text{HL}_{346}$")
+    ax.plot(plot_X, pred_y_1234, label="HL$_{1234}$")
+    ax.plot(plot_X, pred_y_346, label="HL$_{346}$")
     x_min, x_max = ax.get_xlim()
     y_min, y_max = ax.get_ylim()
     for key_point_x in key_point_xs:
         key_point_y_1234 = logistic_func(
             x=np.array([[key_point_x]
                         ]), params=control_params_estimated_1234)[0] * 100
-        # key_point_y_346 = logistic_func(
-        #     x=np.array([[key_point_x]
-        #                 ]), params=control_params_estimated_346)[0] * 100
+        key_point_y_346 = logistic_func(
+            x=np.array([[key_point_x]
+                        ]), params=control_params_estimated_346)[0] * 100
         ax.vlines(x=key_point_x,
                   ymin=y_min,
                   ymax=key_point_y_1234,
@@ -75,12 +75,12 @@ def userdefine_logistic_regression_plot(control_params_estimated_1234,
                             key_point_y_1234 + (y_max - y_min) / 20),
                     color="#1f77b4",
                     arrowprops=dict(color="#1f77b4", arrowstyle="->", linestyle="--"))
-        # ax.annotate("{:.2f}".format(key_point_y_346),
-        #             xy=(key_point_x, key_point_y_346),
-        #             xytext=(key_point_x - (x_max - x_min) / 5,
-        #                     key_point_y_346 + (y_max - y_min) / 15),
-        #             color="#ff7f0e",
-        #             arrowprops=dict(color="#ff7f0e", arrowstyle="->", linestyle="--"))
+        ax.annotate("{:.2f}".format(key_point_y_346),
+                    xy=(key_point_x, key_point_y_346),
+                    xytext=(key_point_x - (x_max - x_min) / 5,
+                            key_point_y_346 + (y_max - y_min) / 15),
+                    color="#ff7f0e",
+                    arrowprops=dict(color="#ff7f0e", arrowstyle="->", linestyle="--"))
     ax.set_ylim(y_min, y_max)
     ax.set_ylabel("Background Risk of Hearing Loss (%)")
     ax.set_xlabel("Age (year)")
@@ -145,8 +145,8 @@ if __name__ == "__main__":
         control_params_estimated_346=control_params_estimated_346,
         pictures_path=pictures_path,
         picture_name="BackgroundRisk-NOISH",
-        picture_format="png",
-        dpi=100,
+        picture_format="tiff",
+        dpi=330,
         fig_title="NOISH Control Group")
 
     # # Chinese data experiment + control

@@ -1,6 +1,7 @@
 import numpy as np
 from functional import seq
 from pydantic import BaseModel
+from typing import Union
 
 from constants.auditory_constants import AuditoryConstants
 from detection_info.auditory_detection import PTAResult
@@ -21,7 +22,7 @@ class AuditoryDiagnose(BaseModel):
     def NIPTS(detection_result: PTAResult, # type: ignore
               sex: str, age: int,
               percentrage: int = 50,
-              mean_key: list = [3000, 4000, 6000],
+              mean_key: Union[list, dict] = [3000, 4000, 6000],
               NIPTS_diagnose_strategy: str = "better",
               **kwargs):
         if NIPTS_diagnose_strategy == "better":
@@ -35,14 +36,22 @@ class AuditoryDiagnose(BaseModel):
         age = AuditoryConstants.AGE_BOXING(age=age)
         percentrage = str(percentrage) + "pr"
         standard_PTA = AuditoryConstants.STANDARD_PTA_DICT.get(sex).get(age)
-        standard_PTA = seq(standard_PTA.items()).filter(lambda x: int(x[0].split(
-            "Hz")[0]) in mean_key).map(lambda x: (int(x[0].split("Hz")[0]), x[1])).dict()
+        if isinstance(mean_key, list):
+            standard_PTA = seq(standard_PTA.items()).filter(lambda x: int(x[0].split(
+                "Hz")[0]) in mean_key).map(lambda x: (int(x[0].split("Hz")[0]), x[1])).dict()
+        if isinstance(mean_key, dict):
+            standard_PTA = seq(standard_PTA.items()).filter(lambda x: int(x[0].split(
+                "Hz")[0]) in mean_key.keys()).map(lambda x: (int(x[0].split("Hz")[0]), x[1])).dict()
         standard_PTA = seq(standard_PTA.items()).map(
             lambda x: (x[0], x[1].get(percentrage))).dict()
 
         try:
-            NIPTS = np.mean([diagnose_ear_data.get(key) -
-                             standard_PTA.get(key) for key in mean_key])
+            if isinstance(mean_key. list):
+                NIPTS = np.mean([diagnose_ear_data.get(key) -
+                                 standard_PTA.get(key) for key in mean_key])
+            if isinstance(mean_key, dict):
+                NIPTS = np.mean([diagnose_ear_data.get(key) -
+                                 standard_PTA.get(key) for key in mean_key.keys()])
         except TypeError:
             raise("Better ear data is incompleted!!!")
         return NIPTS

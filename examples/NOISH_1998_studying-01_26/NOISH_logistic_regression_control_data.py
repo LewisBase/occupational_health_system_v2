@@ -39,12 +39,12 @@ if __name__ == "__main__":
     
     import argparse
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--input_path",
-    #                     type=str,
-    #                     default="./cache/extract_NOISH_control_data-1234.pkl")
     parser.add_argument("--input_path",
                         type=str,
-                        default="./cache/NOISH_extract_control_df.csv")
+                        default="./cache/extract_NOISH_control_data-1234.pkl")
+    # parser.add_argument("--input_path",
+    #                     type=str,
+    #                     default="./cache/NOISH_extract_control_df.csv")
     parser.add_argument("--output_path", type=str, default="./cache")
     parser.add_argument("--models_path", type=str, default="./models")
     parser.add_argument("--additional_set",
@@ -55,8 +55,8 @@ if __name__ == "__main__":
                             "better_ear_strategy": "average_freq",
                             "NIPTS_diagnose_strategy": "better"
                         })
-    parser.add_argument("--task", type=str, default="analysis")
-    # parser.add_argument("--task", type=str, default="extract")
+    # parser.add_argument("--task", type=str, default="analysis")
+    parser.add_argument("--task", type=str, default="extract")
     parser.add_argument("--n_jobs", type=int, default=-1)
     args = parser.parse_args()
 
