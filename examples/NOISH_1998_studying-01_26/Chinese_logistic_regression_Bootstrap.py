@@ -182,10 +182,10 @@ def bootstrap_estimates(data: pd.DataFrame,
     return pd.DataFrame(estimates)
 
 
-def confidence_limit_plot(plot_df: pd.DataFrame, key_point_xs: list, age: int,
+def confidence_limit_plot(plot_dfs: list, key_point_xs: list, age: int,
                           duration: np.array, picture_path: Path,
-                          picture_name: str, picture_format: str, **kwargs):
-    freq_col = kwargs.pop("freq_col", "NIHL1234_Y")
+                          picture_name: str, picture_format: str, annotations={"A": (-0.1, 1.05)}, **kwargs):
+    freq_cols = kwargs.pop("freq_cols", ["NIHL1234w_Y", "NIHL346_Y"])
     dpi = kwargs.pop("dpi", 330)
     is_show = kwargs.pop("is_show", False)
     y_lim = kwargs.pop("y_lim", None)
@@ -198,49 +198,59 @@ def confidence_limit_plot(plot_df: pd.DataFrame, key_point_xs: list, age: int,
         duration_desp = "> 10"
     else:
         raise ValueError
-    if freq_col == "NIHL1234_Y":
-        label_name = "$\\text{HL}_{1234}$"
-    elif freq_col == "NIHL346_Y":
-        label_name = "$\\text{HL}_{346}$"
-    else:
-        label_name = "$\\text{HL}$"
 
     fig, ax = plt.subplots(1, figsize=(6.5, 5), dpi=dpi)
-    ax.plot(plot_df.index, plot_df.excess_risk * 100, label=f"{label_name}")
-    ax.plot(plot_df.index,
-            plot_df.lower_bounds * 100,
-            linestyle="--",
-            label=f"{label_name} lower limit")
-    ax.plot(plot_df.index,
-            plot_df.upper_bounds * 100,
-            linestyle="-.",
-            label=f"{label_name} upper limit")
-    x_min, x_max = ax.get_xlim()
-    if y_lim:
-        y_min, y_max = y_lim
-    else:
-        y_min, y_max = ax.get_ylim()
-    for key_point_x in key_point_xs:
-        key_point_y = plot_df.loc[key_point_x]["excess_risk"] * 100
-        ax.vlines(x=key_point_x,
-                  ymin=y_min,
-                  ymax=key_point_y,
-                  colors="black",
-                  linestyles=":")
-        ax.annotate("{:.2f}".format(key_point_y),
-                    xy=(key_point_x, key_point_y),
-                    xytext=(key_point_x - (x_max - x_min) / 10,
-                            key_point_y + (y_max - y_min) / 20),
-                    color="#1f77b4",
-                    arrowprops=dict(color="#1f77b4",
-                                    arrowstyle="->",
-                                    linestyle="--"))
+    for plot_df, freq_col, color in zip(plot_dfs, freq_cols,
+                                        ['#1f77b4', '#ff7f0e']):
+        if freq_col in ["NIHL1234_Y", "NIHL1234w_Y"]:
+            label_name = "HL$_{1234}$"
+        elif freq_col == "NIHL346_Y":
+            label_name = "HL$_{346}$"
+        else:
+            label_name = "HL"
+
+        ax.plot(plot_df.index,
+                plot_df.excess_risk * 100,
+                label=f"{label_name}",
+                color=color)
+        ax.fill_between(plot_df.index,
+                        y1=plot_df.lower_bounds * 100,
+                        y2=plot_df.upper_bounds * 100,
+                        color=color,
+                        alpha=0.4)
+        x_min, x_max = ax.get_xlim()
+        if y_lim:
+            y_min, y_max = y_lim
+        else:
+            y_min, y_max = ax.get_ylim()
+        for key_point_x in key_point_xs:
+            key_point_y = plot_df.loc[key_point_x]["excess_risk"] * 100
+            ax.vlines(x=key_point_x,
+                      ymin=y_min,
+                      ymax=key_point_y,
+                      colors="black",
+                      linestyles=":")
+            ax.annotate("{:.2f}".format(key_point_y),
+                        xy=(key_point_x, key_point_y),
+                        xytext=(key_point_x - (x_max - x_min) / 10,
+                                key_point_y + (y_max - y_min) / 20),
+                        color=color,
+                        arrowprops=dict(color=color,
+                                        arrowstyle="->",
+                                        linestyle="--"))
     ax.set_ylim(y_min, y_max)
     ax.set_ylabel("Excess Risk of Hearing Loss (%)")
     ax.set_xlabel("$L_{Aeq,8h}$ (dBA)")
     ax.set_title(f"Age = {age}, Duration {duration_desp}")
 
     plt.legend(loc="upper left")
+    for label, (x, y) in annotations.items():
+        ax.annotate(label,
+                    xy=(1, 0),
+                    xycoords='axes fraction',
+                    xytext=(x, y),
+                    textcoords='axes fraction',
+                    fontproperties=FontProperties(size=20, weight='bold'))
     plt.tight_layout()
     picture_path = Path(picture_path) / f"{picture_name}.{picture_format}"
     plt.savefig(picture_path, format=picture_format, dpi=dpi)
@@ -262,7 +272,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--input_path",
         type=str,
-        default="./cache/Chinese_extract_experiment_df_average_freq.csv")
+        default="./cache/Chinese_extract_experiment_df_average_freq_1234w.csv")
+    # default="./cache/Chinese_extract_experiment_df_average_freq.csv")
     # default="./cache/Chinese_extract_experiment_classifier_df.csv")
     # parser.add_argument("--task", type=str, default="analysis")
     parser.add_argument("--task", type=str, default="plot")
@@ -294,12 +305,12 @@ if __name__ == "__main__":
         extract_df["duration_box_best"] = extract_df["duration"].apply(
             lambda x: mark_group_name(x, qcut_set=duration_cut, prefix="D-"))
 
-        freq_col = "NIHL1234_Y"
-        # freq_col = "NIHL346_Y"
+        # freq_col = "NIHL1234w_Y"
+        freq_col = "NIHL346_Y"
 
         # age = 30
         # duration = np.array([0, 1, 0])
-        # age = 45 
+        # age = 45
         # duration = np.array([0, 1, 0])
         # age = 45
         # duration = np.array([0, 0, 1])
@@ -342,8 +353,10 @@ if __name__ == "__main__":
             age=age,
             LAeq=np.arange(60, 101),
             duration=duration,
-            minimize_bounds=([-5.50, -4.99], [0.07, 0.08], [None, None],
+            minimize_bounds=([None, -4.7], [None, 0.09], [None, None],
                              [None, None], [None, None], [1, 3]))
+        # minimize_bounds=([-5.50, -4.99], [0.07, 0.08], [None, None],
+        #                  [None, None], [None, None], [1, 3]))
 
         confidence_res = pd.DataFrame()
         confidence_res["excess_risk"] = excess_risk_value
@@ -359,31 +372,40 @@ if __name__ == "__main__":
             index=True)
 
     if task == "plot":
-        freq_col = "NIHL1234_Y"
-        # freq_col = "NIHL346_Y"
-        
+        freq_col_1 = "NIHL1234_Y"
+        freq_col_2 = "NIHL346_Y"
+
         # age = 30
         # duration = np.array([0, 1, 0])
-        # age = 45 
-        # duration = np.array([0, 1, 0])
         # age = 45
-        # duration = np.array([0, 0, 1])
-        age = 65
+        # duration = np.array([0, 1, 0])
+        age = 45
         duration = np.array([0, 0, 1])
+        # age = 65
+        # duration = np.array([0, 0, 1])
 
-        confidence_res = pd.read_csv(
-            output_path / f"{freq_col[:-2]}-Chinese_conf_limit_{age}-{str(duration[-1])}.csv",
-            header=0, index_col=0)
+        confidence_res_1 = pd.read_csv(
+            output_path /
+            f"{freq_col_1[:-2]}-Chinese_conf_limit_{age}-{str(duration[-1])}.csv",
+            header=0,
+            index_col=0)
+        confidence_res_2 = pd.read_csv(
+            output_path /
+            f"{freq_col_2[:-2]}-Chinese_conf_limit_{age}-{str(duration[-1])}.csv",
+            header=0,
+            index_col=0)
+
         confidence_limit_plot(
-            plot_df=confidence_res,
+            plot_dfs=[confidence_res_1, confidence_res_2],
             key_point_xs=[80, 85, 90, 95, 100],
             age=age,
             duration=duration,
             picture_path=pictures_path,
-            picture_name=
-            f"{freq_col[:-2]}-Chinese_conf_limit_{age}-{str(duration[-1])}",
-            picture_format="png",
-            dpi=100,
-            freq_col=freq_col,
-            y_lim=[-2, 60])
+            picture_name="Fig3C",
+            # f"{freq_col[:-2]}-Chinese_conf_limit_{age}-{str(duration[-1])}",
+            picture_format="tiff",
+            dpi=330,
+            freq_cols=[freq_col_1, freq_col_2],
+            y_lim=[-2, 60],
+            annotations={"C": (-0.1, 1.05)})
     print(1)

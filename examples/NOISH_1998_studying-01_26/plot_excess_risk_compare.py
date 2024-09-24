@@ -65,7 +65,7 @@ def userdefine_logistic_regression_plot(best_params_estimateds: list,
     for best_params_estimated, best_L_control, max_LAeq, control_params_estimated, label in zip(
             best_params_estimateds, best_L_controls, max_LAeqs,
             control_params_estimateds,
-        ["$\\text{NIHL}_{1234}$", "$\\text{NIHL}_{346}$"]):
+        ["HL$_{1234}$", "HL$_{346}$"]):
         LAeq_duration_matrix = np.tile(duration, (len(LAeq), 1)) * (
             (LAeq - best_L_control) /
             (max_LAeq - best_L_control))[:, np.newaxis]
@@ -123,20 +123,20 @@ if __name__ == "__main__":
     experiment_params_estimated_1234, experiment_L_control_1234, experiment_max_LAeq_1234, experiment_log_likelihood_value_1234 = pickle.load(
         open(
             models_path /
-            Path("NIHL1234_Y-Chinese_experiment_group_udlr_model.pkl"), "rb"))
+            Path("NIHL1234w_Y-Chinese_experiment_group_udlr_model_average_freq.pkl"), "rb"))
     experiment_params_estimated_346, experiment_L_control_346, experiment_max_LAeq_346, experiment_log_likelihood_value_346 = pickle.load(
         open(
             models_path /
-            Path("NIHL346_Y-Chinese_experiment_group_udlr_model.pkl"), "rb"))
+            Path("NIHL346_Y-Chinese_experiment_group_udlr_model_average_freq.pkl"), "rb"))
 
     control_params_estimated_1234, control_log_likelihood_value_1234 = pickle.load(
         open(
             models_path /
-            Path("NIHL1234_Y-Chinese_control_group_udlr_model_0.pkl"), "rb"))
+            Path("HL1234w_Y-NOISH_control_group_udlr_model_0.pkl"), "rb"))
     control_params_estimated_346, control_log_likelihood_value_346 = pickle.load(
         open(
             models_path /
-            Path("NIHL346_Y-Chinese_control_group_udlr_model_0.pkl"), "rb"))
+            Path("HL346_Y-NOISH_control_group_udlr_model_0.pkl"), "rb"))
 
     num_res = userdefine_logistic_regression_plot(best_params_estimateds=[experiment_params_estimated_1234, experiment_params_estimated_346],
                                                   best_L_controls=[experiment_L_control_1234, experiment_L_control_346],
