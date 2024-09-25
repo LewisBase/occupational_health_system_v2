@@ -267,14 +267,11 @@ def userdefine_logistic_regression_plot(best_params_estimated,
     else:
         raise ValueError
     if freq_col == "NIHL1234_Y":
-        # label_name = "$HL_{1234}$"
-        label_name = "$\\text{HL}_{1234}$"
+        label_name = "HL$_{1234}$"
     elif freq_col == "NIHL346_Y":
-        # label_name = "$HL_{346}$"
-        label_name = "$\\text{HL}_{346}$"
+        label_name = "HL$_{346}$"
     else:
-        # label_name = "$HL$"
-        label_name = "$\\text{HL}$"
+        label_name = "HL"
         
     logger.info(f"Params: {best_params_estimated}")
     logger.info(f"L_control: {best_L_control}")
@@ -706,87 +703,87 @@ if __name__ == "__main__":
         #         # phi_range=[1,2,3],
         #         minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[1, 3]))
 
-        ## NIHL1234w_Y
-        max_LAeq = extract_df["LAeq"].max()
-        fit_df = extract_df.query(
-            "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
-                "age", "LAeq", "duration_box_best", "NIHL1234w_Y"
-            ]]
-        userdefine_logistic_regression_task(
-            fit_df=fit_df,
-            max_LAeq=max_LAeq,
-            models_path=models_path,
-            model_name="Chinese_experiment_group_udlr_model_average_freq.pkl",
-            y_col_name="NIHL1234w_Y",
-            L_control_range=np.arange(60, 79),
-            # params_init=[-5.36, 0.08, 2.66, 3.98, 6.42],
-            # phi_range=[1,2,3,4,5],
-            # minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None]))
-            params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
-            minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[0, 3]))
-
-        ## KG-groups
-        for KG_group in ["KG-1", "KG-2", "KG-3"]: #, "KG-4"]:
-            max_LAeq = extract_df["LAeq"].max()
-            fit_df = extract_df.query(
-                f"duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean_box == @KG_group")[[
-                    "age", "LAeq", "duration_box_best", "NIHL1234w_Y"
-                ]]
-            userdefine_logistic_regression_task(
-                fit_df=fit_df,
-                max_LAeq=max_LAeq,
-                models_path=models_path,
-                model_name=f"{KG_group}-Chinese_experiment_group_udlr_model_average_freq.pkl",
-                y_col_name="NIHL1234w_Y",
-                params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
-                L_control_range=np.arange(60, 79),
-                # phi_range=[1,2,3],
-                minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[1, 3]))
-
-
-        ## NIHL346_Y
+        # ## NIHL1234w_Y
         # max_LAeq = extract_df["LAeq"].max()
         # fit_df = extract_df.query(
         #     "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
-        #         "age", "LAeq", "duration_box_best", "NIHL346_Y"
+        #         "age", "LAeq", "duration_box_best", "NIHL1234w_Y"
         #     ]]
         # userdefine_logistic_regression_task(
         #     fit_df=fit_df,
         #     max_LAeq=max_LAeq,
         #     models_path=models_path,
         #     model_name="Chinese_experiment_group_udlr_model_average_freq.pkl",
-        #     y_col_name="NIHL346_Y",
-        #     params_init=[-5.36, 0.08, 7.66, 8.98, 9.42, 3],
+        #     y_col_name="NIHL1234w_Y",
         #     L_control_range=np.arange(60, 79),
+        #     # params_init=[-5.36, 0.08, 2.66, 3.98, 6.42],
         #     # phi_range=[1,2,3,4,5],
-        #     minimize_bounds = ([None, -4.7],[None,0.09],[None, None],[None,None],[None, None],[1, 3]))
+        #     # minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None]))
+        #     params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
+        #     minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[0, 3]))
 
-        ### KG-groups
-        # for KG_group in ["KG-1", "KG-2", "KG-3"]:
+        # ## KG-groups
+        # for KG_group in ["KG-1", "KG-2", "KG-3"]: #, "KG-4"]:
         #     max_LAeq = extract_df["LAeq"].max()
         #     fit_df = extract_df.query(
         #         f"duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean_box == @KG_group")[[
-        #             "age", "LAeq", "duration_box_best", "NIHL346_Y"
+        #             "age", "LAeq", "duration_box_best", "NIHL1234w_Y"
         #         ]]
         #     userdefine_logistic_regression_task(
         #         fit_df=fit_df,
         #         max_LAeq=max_LAeq,
         #         models_path=models_path,
         #         model_name=f"{KG_group}-Chinese_experiment_group_udlr_model_average_freq.pkl",
-        #         y_col_name="NIHL346_Y",
+        #         y_col_name="NIHL1234w_Y",
         #         params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
         #         L_control_range=np.arange(60, 79),
         #         # phi_range=[1,2,3],
-        #         minimize_bounds = ([None, -4.7],[None,0.09],[None, None],[None,None],[None, None],[1, 3]))
+        #         minimize_bounds = ([-5.50,-4.99],[0.07,0.08],[None, None],[None,None],[None, None],[1, 3]))
+
+
+        ## NIHL346_Y
+        max_LAeq = extract_df["LAeq"].max()
+        fit_df = extract_df.query(
+            "duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70")[[
+                "age", "LAeq", "duration_box_best", "NIHL346_Y"
+            ]]
+        userdefine_logistic_regression_task(
+            fit_df=fit_df,
+            max_LAeq=max_LAeq,
+            models_path=models_path,
+            model_name="Chinese_experiment_group_udlr_model_average_freq.pkl",
+            y_col_name="NIHL346_Y",
+            params_init=[-5.36, 0.08, 7.66, 8.98, 9.42, 3],
+            L_control_range=np.arange(60, 79),
+            # phi_range=[1,2,3,4,5],
+            minimize_bounds = ([None, -4.7],[None,0.09],[None, None],[None,None],[None, None],[1, 3]))
+
+        ## KG-groups
+        for KG_group in ["KG-1", "KG-2", "KG-3"]:
+            max_LAeq = extract_df["LAeq"].max()
+            fit_df = extract_df.query(
+                f"duration_box_best in ('D-1', 'D-2', 'D-3') and LAeq >= 70 and kurtosis_geomean_box == @KG_group")[[
+                    "age", "LAeq", "duration_box_best", "NIHL346_Y"
+                ]]
+            userdefine_logistic_regression_task(
+                fit_df=fit_df,
+                max_LAeq=max_LAeq,
+                models_path=models_path,
+                model_name=f"{KG_group}-Chinese_experiment_group_udlr_model_average_freq.pkl",
+                y_col_name="NIHL346_Y",
+                params_init=[-5.36, 0.08, 2.66, 3.98, 6.42, 3],
+                L_control_range=np.arange(60, 79),
+                # phi_range=[1,2,3],
+                minimize_bounds = ([None, -4.7],[None,0.09],[None, None],[None,None],[None, None],[1, 3]))
 
 ################################################################################################################################
     if task == "plot":
         # freq_col = "NIHL1234_Y"
-        freq_col = "NIHL1234w_Y"
-        # freq_col = "NIHL346_Y"
+        # freq_col = "NIHL1234w_Y"
+        freq_col = "NIHL346_Y"
 
-        # KG_group = True
-        KG_group = False
+        KG_group = True
+        # KG_group = False
 
         # age = 30
         # duration = np.array([0, 1, 0])

@@ -64,9 +64,10 @@ def userdefine_logistic_regression_plot(best_params_estimateds: list,
         raise ValueError
 
     fig, ax = plt.subplots(1, figsize=(6.5, 5), dpi=dpi)
-    for best_params_estimated, best_L_control, max_LAeq, control_params_estimated, label in zip(
+    for best_params_estimated, best_L_control, max_LAeq, control_params_estimated, label, color in zip(
             best_params_estimateds, best_L_controls, max_LAeqs,
-            control_params_estimateds, ["KG-1", "KG-2", "KG-3"]):
+            control_params_estimateds, ["KG-1", "KG-2", "KG-3"],
+        ["#1f77b4", "#ff7f0e", "#2ca02c"]):
         LAeq_duration_matrix = np.tile(duration, (len(LAeq), 1)) * (
             (LAeq - best_L_control) /
             (max_LAeq - best_L_control))[:, np.newaxis]
@@ -88,7 +89,7 @@ def userdefine_logistic_regression_plot(best_params_estimateds: list,
             control_y = logistic_func_control_1(
                 x=control_X, params=control_params_estimated)
         # plot excess risk curve
-        ax.plot(LAeq, (pred_y - control_y) * 100, label=label)
+        ax.plot(LAeq, (pred_y - control_y) * 100, label=label, color=color)
         # annotate key points
         x_min, x_max = ax.get_xlim()
         if y_lim:
@@ -96,41 +97,44 @@ def userdefine_logistic_regression_plot(best_params_estimateds: list,
         else:
             y_min, y_max = ax.get_ylim()
         for key_point_x in key_point_xs:
-            LAeq_index = np.where(LAeq==key_point_x)[0]
-            key_point_y = ((pred_y[LAeq_index]-control_y) * 100)[0]
-            logger.info(f"{label} group excess risk at {key_point_x} = {key_point_y}")
-            
-            # ax.vlines(x=key_point_x,
-            #           ymin=y_min,
-            #           ymax=key_point_y,
-            #           colors="black",
-            #           linestyles=":")
-            # ax.annotate("{:.2f}".format(key_point_y),
-            #             xy=(key_point_x, key_point_y),
-            #             xytext=(key_point_x - (x_max - x_min) / 10,
-            #                     key_point_y + (y_max - y_min) / 20),
-            #             color="#1f77b4",
-            #             arrowprops=dict(color="#1f77b4",
-            #                             arrowstyle="->",
-            #                             linestyle="--"))
+            LAeq_index = np.where(LAeq == key_point_x)[0]
+            key_point_y = ((pred_y[LAeq_index] - control_y) * 100)[0]
+            logger.info(
+                f"{label} group excess risk at {key_point_x} = {key_point_y}")
+
+            ax.vlines(x=key_point_x,
+                      ymin=y_min,
+                      ymax=key_point_y,
+                      colors="black",
+                      linestyles=":")
+            ax.annotate("{:.2f}".format(key_point_y),
+                        xy=(key_point_x, key_point_y),
+                        xytext=(key_point_x - ((x_max - x_min) / 10)*int(label[-1]),
+                                key_point_y + ((y_max - y_min) / 20)*int(label[-1])),
+                        color=color,
+                        arrowprops=dict(color=color,
+                                        arrowstyle="->",
+                                        linestyle="--"))
 
         # plot 2nd derivative key point
-        age_array = np.array([age])
-        point_x_duration_array = (point_x - best_L_control) / (
-            max_LAeq - best_L_control) * duration
-        point_X = np.concatenate((age_array, point_x_duration_array),
-                                 axis=0)[np.newaxis, :]
-        point_y = logistic_func_original(x=point_X, params=best_params_estimated)
-        ax.annotate(f"key point: {point_x} dBA",
-                xy=(point_x, (point_y - control_y)*100),
-                xytext=(point_x - (max(LAeq) - min(LAeq)) / 5 - 2 * int(label[-1]),
-                        (point_y - control_y)*100 + (y_max - y_min) / 10 + 5 * int(label[-1])),
-                color="red",
-                arrowprops=dict(color="red", arrowstyle="->"))
-        
+        # age_array = np.array([age])
+        # point_x_duration_array = (point_x - best_L_control) / (
+        #     max_LAeq - best_L_control) * duration
+        # point_X = np.concatenate((age_array, point_x_duration_array),
+        #                          axis=0)[np.newaxis, :]
+        # point_y = logistic_func_original(x=point_X,
+        #                                  params=best_params_estimated)
+        # ax.annotate(f"key point: {point_x} dBA",
+        #             xy=(point_x, (point_y - control_y) * 100),
+        #             xytext=(point_x - (max(LAeq) - min(LAeq)) / 5 -
+        #                     2 * int(label[-1]), (point_y - control_y) * 100 +
+        #                     (y_max - y_min) / 10 + 5 * int(label[-1])),
+        #             color="red",
+        #             arrowprops=dict(color="red", arrowstyle="->"))
+
         ax.set_title(f"Age = {age}, Duration {duration_desp}")
         ax.set_ylabel("Excess Risk of HL$_{1234}$ (%)" if task_name ==
-                      "1234" else "Excess Risk of HL$_{346}$ (%)")
+                      "1234w" else "Excess Risk of HL$_{346}$ (%)")
         ax.set_xlabel("$L_{Aeq,8h}$ (dBA)")
     plt.legend(loc="upper left")
     for label, (x, y) in annotations.items():
@@ -154,8 +158,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--models_path", type=str, default="./models")
     parser.add_argument("--pictures_path", type=str, default="./pictures")
-    # parser.add_argument("--task_name", type=str, default="346")
-    parser.add_argument("--task_name", type=str, default="1234")
+    parser.add_argument("--task_name", type=str, default="346")
+    # parser.add_argument("--task_name", type=str, default="1234w")
     args = parser.parse_args()
 
     logger.info("Input Parameters informations:")
@@ -197,14 +201,14 @@ if __name__ == "__main__":
         control_params_estimateds=[control_params_estimated] * 3,
         key_point_xs=[80, 85, 90, 95, 100],
         pictures_path=pictures_path,
-        picture_name="Fig5A" if task_name == "1234" else "Fig5B",
+        picture_name="Fig4A" if task_name == "1234w" else "Fig4B",
         picture_format="tiff",
         age=65,
         LAeq=np.arange(60, 101),
         duration=np.array([0, 0, 1]),
         annotations={"A":
                      (-0.1,
-                      1.05)} if task_name == "1234" else {"B": (-0.1, 1.05)},
+                      1.05)} if task_name == "1234w" else {"B": (-0.1, 1.05)},
         y_lim=[-2, 60],
         task_name=task_name)
 
