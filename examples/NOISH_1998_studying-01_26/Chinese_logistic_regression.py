@@ -233,6 +233,7 @@ def userdefine_logistic_regression_plot(best_params_estimated,
                                         duration: np.array = np.array(
                                             [1, 0, 0]),
                                         point_type: str = "2nd",
+                                        annotations={"A": (-0.1, 1.05)},
                                         **kwargs):
     """_summary_
     概率曲线绘制函数
@@ -266,7 +267,7 @@ def userdefine_logistic_regression_plot(best_params_estimated,
         duration_desp = "> 10"
     else:
         raise ValueError
-    if freq_col == "NIHL1234_Y":
+    if freq_col in ["NIHL1234_Y", "NIHL1234w_Y"]:
         label_name = "HL$_{1234}$"
     elif freq_col == "NIHL346_Y":
         label_name = "HL$_{346}$"
@@ -366,6 +367,13 @@ def userdefine_logistic_regression_plot(best_params_estimated,
         legend = plt.legend(handles=[line0], loc="upper left")
     # 添加图例到图形
     plt.gca().add_artist(legend)
+    for label, (x, y) in annotations.items():
+        ax.annotate(label,
+                    xy=(1, 0),
+                    xycoords='axes fraction',
+                    xytext=(x, y),
+                    textcoords='axes fraction',
+                    fontproperties=FontProperties(size=20, weight='bold'))
 
     plt.tight_layout()
     picture_path = Path(picture_path) / f"{picture_name}.{picture_format}"
@@ -785,14 +793,14 @@ if __name__ == "__main__":
         KG_group = True
         # KG_group = False
 
-        # age = 30
-        # duration = np.array([0, 1, 0])
+        age = 30
+        duration = np.array([0, 1, 0])
         # age = 45 
         # duration = np.array([0, 1, 0])
         # age = 45
         # duration = np.array([0, 0, 1])
-        age = 65 
-        duration = np.array([0, 0, 1])
+        # age = 65 
+        # duration = np.array([0, 0, 1])
 
         control_params_estimated, control_log_likelihood_value = pickle.load(
                     open(
@@ -833,12 +841,14 @@ if __name__ == "__main__":
                 best_L_control=best_L_control,
                 max_LAeq=max_LAeq,
                 picture_path=pictures_path,
-                picture_name=f"{freq_col[:-2]}-Chinese_experiment_excess_risk_{age}-{str(duration[-1])}",
-                picture_format="png",
+                picture_name=f"Fig6D",
+                # picture_name=f"{freq_col[:-2]}-Chinese_experiment_excess_risk_{age}-{str(duration[-1])}",
+                picture_format="tiff",
                 LAeq=np.arange(60, 101),
                 age=age,
                 duration=duration,
                 point_type="2nd",
+                annotations={"D": (-0.1, 1.05)},
                 control_params_estimated=control_params_estimated,
                 y_lim=[-2, 60],
                 freq_col=freq_col)

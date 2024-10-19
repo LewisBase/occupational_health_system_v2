@@ -268,7 +268,7 @@ if __name__ == "__main__":
                             # "Lambdas": [6.5, 6.5, 6.5],
                             # "Lambdas": [5.42, 5.42, 5.42],
                             # "Lambdas": [7.02, 8.30, 5.42],
-                            "Lambdas": [6.50, 6.50, 5.42],
+                            "Lambdas": [6.47, 7.58, 5.42],
                         })
     parser.add_argument("--n_jobs", type=int, default=-1)
     args = parser.parse_args()
