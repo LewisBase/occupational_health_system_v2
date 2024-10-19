@@ -46,7 +46,7 @@ class AuditoryDiagnose(BaseModel):
             lambda x: (x[0], x[1].get(percentrage))).dict()
 
         try:
-            if isinstance(mean_key. list):
+            if isinstance(mean_key, list):
                 NIPTS = np.mean([diagnose_ear_data.get(key) -
                                  standard_PTA.get(key) for key in mean_key])
             if isinstance(mean_key, dict):
